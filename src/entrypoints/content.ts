@@ -9,6 +9,7 @@ import type {
 import { MAX_TAB_TRANSFER_BYTES } from "../lib/constants";
 import { detectAssetType } from "../lib/utils/asset";
 import { arrayBufferToBase64 } from "../lib/utils/binary";
+import { showSaveToast } from "../lib/save-toast";
 
 function safeResolveUrl(url: string): string | null {
   try {
@@ -206,6 +207,12 @@ export default defineContentScript({
 
         if (message.type === "FETCH_ASSET_BYTES") {
           sendResponse(await fetchAssetBytes(message.url, message.referrer));
+          return;
+        }
+
+        if (message.type === "SHOW_SAVE_STATUS") {
+          showSaveToast(message.status);
+          sendResponse({ ok: true });
         }
       })();
 
