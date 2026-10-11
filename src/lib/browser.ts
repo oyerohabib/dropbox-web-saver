@@ -2,6 +2,7 @@ import type {
   AssetCandidate,
   AssetDescriptionResponse,
   AssetFetchPayload,
+  BackgroundErrorResponse,
   BackgroundMessage,
   ContentScriptMessage,
   ScanPageAssetsResponse,
@@ -11,7 +12,11 @@ import { base64ToArrayBuffer } from "./utils/binary";
 const CONTENT_SCRIPT_FILE = "content-scripts/content.js";
 
 export async function sendBackgroundMessage<T>(message: BackgroundMessage): Promise<T> {
-  return chrome.runtime.sendMessage(message) as Promise<T>;
+  const response = (await chrome.runtime.sendMessage(message)) as T | BackgroundErrorResponse;
+  if (response && typeof response === "object" && "backgroundError" in response) {
+    throw new Error(response.message);
+  }
+  return response as T;
 }
 
 export async function sendMessageToTab<T>(

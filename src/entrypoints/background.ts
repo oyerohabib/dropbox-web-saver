@@ -31,6 +31,7 @@ import type {
   AssetCandidate,
   AssetFetchPayload,
   AssetTriggerKind,
+  BackgroundErrorResponse,
   BackgroundMessage,
   ExtensionSettings,
   SaveRequest,
@@ -551,10 +552,9 @@ export default defineBackground(() => {
       }
     })().catch((error) => {
       sendResponse({
-        ok: false,
-        status: "failed",
+        backgroundError: true,
         message: error instanceof Error ? error.message : "Unexpected background error.",
-      } satisfies SaveResult);
+      } satisfies BackgroundErrorResponse);
     });
 
     return true;
