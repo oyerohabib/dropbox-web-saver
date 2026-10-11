@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FolderPicker } from "../../components/FolderPicker";
 import { Button, Spinner, StatusMessage, type StatusTone } from "../../components/ui";
-import { openPreferencesTab, sendBackgroundMessage } from "../../lib/browser";
+import { openPreferencesTab, openSettingsTab, sendBackgroundMessage } from "../../lib/browser";
 import { deriveCandidateFilename } from "../../lib/utils/filename";
 import { getDropboxWebUrl } from "../../lib/utils/url";
 import type {
@@ -201,20 +201,26 @@ export function SaveApp() {
           <div className="section-title">Connect Dropbox</div>
           <div className="muted">
             {authState?.status === "missing_app_key"
-              ? "Add your Dropbox app key on the settings page before you connect."
+              ? "Web Saver needs a Dropbox app key first. The setup guide walks you through it in about 3 minutes."
               : "Authorize Dropbox to continue."}
           </div>
           <div className="actions-wrap">
-            <Button
-              disabled={authState?.status === "missing_app_key"}
-              loading={connecting}
-              onClick={() => void connect()}
-            >
-              Connect Dropbox
-            </Button>
-            <Button onClick={() => chrome.runtime.openOptionsPage()} variant="secondary">
-              Open Settings
-            </Button>
+            {authState?.status === "missing_app_key" ? (
+              <Button onClick={() => void openSettingsTab("setup")}>Open setup guide</Button>
+            ) : (
+              <>
+                <Button loading={connecting} onClick={() => void connect()}>
+                  Connect Dropbox
+                </Button>
+                <Button onClick={() => void openSettingsTab("setup")} variant="secondary">
+                  Setup help
+                </Button>
+              </>
+            )}
+          </div>
+          <div className="muted">
+            🔒 Your key stays on this computer.{" "}
+            <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
           </div>
         </section>
       ) : null}
@@ -332,6 +338,8 @@ export function SaveApp() {
         <button className="link-button" onClick={() => void openPreferencesTab()} type="button">
           Change how saving works
         </button>
+        <span className="muted">{" · "}</span>
+        <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
       </footer>
     </div>
   );
