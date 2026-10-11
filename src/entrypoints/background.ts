@@ -19,9 +19,11 @@ import {
 import {
   getPendingSave,
   getRecentSaves,
+  getSaveWindowId,
   getSettings,
   setLastResult,
   setPendingSave,
+  setSaveWindowId,
   setTokens,
   updateSettings,
 } from "../lib/storage";
@@ -108,12 +110,25 @@ function buildCandidateFromContext(
 }
 
 async function openSaveWindow() {
-  await chrome.windows.create({
+  const existingWindowId = await getSaveWindowId();
+  if (existingWindowId !== null) {
+    // Untrack before closing so onRemoved does not treat this as the user cancelling the new flow.
+    await setSaveWindowId(null);
+    await chrome.windows.remove(existingWindowId).catch(() => undefined);
+  }
+
+  const created = await chrome.windows.create({
     url: chrome.runtime.getURL("save.html"),
     type: "popup",
     width: 560,
     height: 820,
   });
+  await setSaveWindowId(created?.id ?? null);
+}
+
+async function openFolderSettingsWindow() {
+  await setPendingSave(null);
+  await openSaveWindow();
 }
 
 async function setBadgeForResult(result: SaveResult) {
@@ -364,6 +379,14 @@ export default defineBackground(() => {
 
   chrome.runtime.onInstalled.addListener(() => {
     void initializeContextMenus();
+  });
+
+  chrome.windows.onRemoved.addListener((windowId) => {
+    void (async () => {
+      if ((await getSaveWindowId()) !== windowId) return;
+      await setSaveWindowId(null);
+      await setPendingSave(null);
+    })();
   });
 
   chrome.contextMenus.onClicked.addListener((info, tab) => {

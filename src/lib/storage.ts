@@ -14,6 +14,7 @@ const STORAGE_KEYS = {
   recentSaves: "recentSaves",
   pendingSave: "pendingSave",
   lastResult: "lastResult",
+  saveWindowId: "saveWindowId",
 };
 
 const defaultSettings: ExtensionSettings = {
@@ -88,6 +89,18 @@ export async function getPendingSave(): Promise<PendingSaveState | null> {
 
 export async function setPendingSave(pending: PendingSaveState | null): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEYS.pendingSave]: pending });
+}
+
+// Session storage survives service worker restarts but not browser restarts, matching window lifetimes.
+export async function getSaveWindowId(): Promise<number | null> {
+  const result = (await chrome.storage.session.get(
+    STORAGE_KEYS.saveWindowId,
+  )) as Record<string, number | null | undefined>;
+  return result[STORAGE_KEYS.saveWindowId] ?? null;
+}
+
+export async function setSaveWindowId(windowId: number | null): Promise<void> {
+  await chrome.storage.session.set({ [STORAGE_KEYS.saveWindowId]: windowId });
 }
 
 export async function setLastResult(result: SaveResult | null): Promise<void> {
