@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FolderPicker } from "../../components/FolderPicker";
 import { sendBackgroundMessage } from "../../lib/browser";
-import { deriveFilename } from "../../lib/utils/filename";
+import { deriveCandidateFilename } from "../../lib/utils/filename";
 import type {
   AssetCandidate,
   DropboxAuthState,
@@ -53,14 +53,10 @@ export function SaveApp() {
           || nextSaveFlow.assets[0]
         : nextSaveFlow?.request.candidate;
     const nextResolvedFilename = nextCandidate
-      ? deriveFilename(nextCandidate.sourceUrl, nextCandidate.suggestedFilename, nextCandidate.mimeType, {
-          preferredFilename:
-            nextSaveFlow?.mode === "single"
-              ? nextSaveFlow.request.finalFilename || nextCandidate.preferredFilename
-              : nextCandidate.preferredFilename,
-          contentDispositionFilename: nextCandidate.contentDispositionFilename,
-          elementTextHint: nextCandidate.elementTextHint,
-        })
+      ? deriveCandidateFilename(
+          nextCandidate,
+          nextSaveFlow?.mode === "single" ? nextSaveFlow.request.finalFilename : null,
+        )
       : "";
     setFilenameDraft(
       nextSaveFlow?.mode === "scan"
@@ -84,13 +80,7 @@ export function SaveApp() {
   }, []);
 
   const reviewCandidate = getReviewCandidate(saveFlow, selectedSourceUrl);
-  const resolvedFilename = reviewCandidate
-    ? deriveFilename(reviewCandidate.sourceUrl, reviewCandidate.suggestedFilename, reviewCandidate.mimeType, {
-        preferredFilename: reviewCandidate.preferredFilename,
-        contentDispositionFilename: reviewCandidate.contentDispositionFilename,
-        elementTextHint: reviewCandidate.elementTextHint,
-      })
-    : null;
+  const resolvedFilename = reviewCandidate ? deriveCandidateFilename(reviewCandidate) : null;
   const shouldPromptForRename = savePreferences?.promptForRename ?? false;
 
   useEffect(() => {
@@ -209,16 +199,7 @@ export function SaveApp() {
           </div>
           <div className="asset-list">
             {saveFlow.assets.map((asset) => {
-              const assetFilename = deriveFilename(
-                asset.sourceUrl,
-                asset.suggestedFilename,
-                asset.mimeType,
-                {
-                  preferredFilename: asset.preferredFilename,
-                  contentDispositionFilename: asset.contentDispositionFilename,
-                  elementTextHint: asset.elementTextHint,
-                },
-              );
+              const assetFilename = deriveCandidateFilename(asset);
               return (
                 <button
                   className="asset-row"

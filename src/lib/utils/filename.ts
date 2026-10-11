@@ -1,3 +1,5 @@
+import type { AssetCandidate } from "../types";
+
 const MIME_EXTENSION_MAP: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/jpg": "jpg",
@@ -108,6 +110,22 @@ export function deriveFilename(
 
   const extension = getExtensionForMimeType(mimeType);
   return sanitizeFilename(extension ? `asset.${extension}` : "asset");
+}
+
+export function deriveCandidateFilename(
+  candidate: AssetCandidate,
+  finalFilename?: string | null,
+): string {
+  return deriveFilename(
+    candidate.sourceUrl,
+    finalFilename || candidate.suggestedFilename,
+    candidate.mimeType,
+    {
+      preferredFilename: finalFilename || candidate.preferredFilename,
+      contentDispositionFilename: candidate.contentDispositionFilename,
+      elementTextHint: candidate.elementTextHint,
+    },
+  );
 }
 
 export function joinDropboxPath(folderPath: string, filename: string): string {

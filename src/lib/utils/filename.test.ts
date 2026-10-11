@@ -1,4 +1,5 @@
 import {
+  deriveCandidateFilename,
   deriveFilename,
   joinDropboxPath,
   parseContentDispositionFilename,
@@ -24,6 +25,38 @@ describe("filename utilities", () => {
         preferredFilename: "homepage-hero",
       }),
     ).toBe("homepage-hero.png");
+  });
+
+  it("strips mime type parameters before choosing an extension", () => {
+    expect(deriveFilename("https://example.com/render/latest", null, "image/webp; charset=binary")).toBe(
+      "latest.webp",
+    );
+  });
+
+  it("collapses whitespace and caps long element hints", () => {
+    const longAlt = `A   person standing\non a mountain ${"at sunset ".repeat(20)}`;
+    const filename = deriveFilename("https://images.example.com/photo-123", null, "image/jpeg", {
+      elementTextHint: longAlt,
+    });
+    expect(filename.endsWith(".jpg")).toBe(true);
+    expect(filename.startsWith("A person standing on a mountain")).toBe(true);
+    expect(filename.length).toBeLessThanOrEqual(84);
+  });
+
+  it("adds the detected extension to a user-edited name without one", () => {
+    expect(
+      deriveCandidateFilename(
+        {
+          sourceUrl: "https://images.example.com/photo-123",
+          pageUrl: "https://example.com",
+          detectedType: "image",
+          suggestedFilename: null,
+          requiresAuthenticatedFetch: false,
+          mimeType: "image/jpeg",
+        },
+        "my mountain shot",
+      ),
+    ).toBe("my mountain shot.jpg");
   });
 
   it("parses content disposition filenames", () => {
