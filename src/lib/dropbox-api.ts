@@ -7,7 +7,57 @@ import {
   SIMPLE_UPLOAD_LIMIT,
 } from "./constants";
 import { getValidAccessToken, setAccountEmail } from "./dropbox-auth";
-import type { FolderEntry } from "./types";
+import { setTokens } from "./storage";
+import type { FolderEntry, SaveErrorCode } from "./types";
+import { SavePipelineError } from "./utils/errors";
+
+function readErrorSummary(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { error_summary?: string };
+    return parsed.error_summary ?? "";
+  } catch {
+    return body.slice(0, 200);
+  }
+}
+
+export async function checkDropboxResponse(
+  response: Response,
+  fallbackCode: SaveErrorCode = "UNKNOWN",
+): Promise<void> {
+  if (response.ok) return;
+
+  if (response.status === 401) {
+    await setTokens(null);
+    throw new SavePipelineError(
+      "Your Dropbox connection expired or was revoked. Reconnect Dropbox to continue.",
+      "TOKEN_EXPIRED",
+    );
+  }
+  if (response.status === 429) {
+    throw new SavePipelineError(
+      "Dropbox is rate limiting requests. Wait a moment and try again.",
+      fallbackCode,
+    );
+  }
+
+  const summary = readErrorSummary(await response.text().catch(() => ""));
+  if (summary.includes("insufficient_space")) {
+    throw new SavePipelineError("Your Dropbox is full. Free up space and try again.", "UPLOAD_FAILED");
+  }
+  if (summary.includes("not_found")) {
+    throw new SavePipelineError(
+      "That Dropbox folder no longer exists. Choose another folder.",
+      "FOLDER_NOT_FOUND",
+    );
+  }
+  if (summary.includes("conflict/folder")) {
+    throw new SavePipelineError("A folder with that name already exists here.", fallbackCode);
+  }
+  throw new SavePipelineError(
+    `Dropbox request failed (${response.status})${summary ? `: ${summary}` : ""}`,
+    fallbackCode,
+  );
+}
 
 async function dropboxApiFetch<T>(
   endpoint: string,
@@ -23,11 +73,7 @@ async function dropboxApiFetch<T>(
     },
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Dropbox API request failed (${response.status})`);
-  }
-
+  await checkDropboxResponse(response);
   return response.json() as Promise<T>;
 }
 
@@ -151,9 +197,7 @@ async function uploadSimple(path: string, data: ArrayBuffer): Promise<{ pathDisp
     body: data,
   });
 
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
+  await checkDropboxResponse(response, "UPLOAD_FAILED");
 
   const payload = await response.json();
   return { pathDisplay: payload.path_display };
@@ -174,7 +218,7 @@ async function uploadSession(path: string, data: ArrayBuffer): Promise<{ pathDis
     body: firstChunk,
   });
 
-  if (!startResponse.ok) throw new Error(await startResponse.text());
+  await checkDropboxResponse(startResponse, "UPLOAD_FAILED");
   const startPayload = await startResponse.json();
   const sessionId = startPayload.session_id as string;
 
@@ -205,7 +249,7 @@ async function uploadSession(path: string, data: ArrayBuffer): Promise<{ pathDis
       body: chunk,
     });
 
-    if (!response.ok) throw new Error(await response.text());
+    await checkDropboxResponse(response, "UPLOAD_FAILED");
     if (isLast) {
       const payload = await response.json();
       return { pathDisplay: payload.path_display };

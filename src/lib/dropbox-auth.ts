@@ -7,6 +7,7 @@ import {
 } from "./constants";
 import { getSettings, getTokens, setTokens } from "./storage";
 import type { DropboxAuthState, DropboxTokens } from "./types";
+import { SavePipelineError } from "./utils/errors";
 import { createCodeChallenge, createCodeVerifier } from "./utils/pkce";
 
 async function exchangeCodeForTokens(args: {
@@ -58,6 +59,13 @@ async function refreshTokens(appKey: string, refreshToken: string): Promise<Drop
     body,
   });
 
+  if (response.status === 400 || response.status === 401) {
+    await setTokens(null);
+    throw new SavePipelineError(
+      "Your Dropbox connection expired or was revoked. Reconnect Dropbox to continue.",
+      "TOKEN_EXPIRED",
+    );
+  }
   if (!response.ok) {
     throw new Error(`Dropbox token refresh failed (${response.status})`);
   }
@@ -165,7 +173,7 @@ export async function getValidAccessToken(): Promise<string> {
   const tokens = await getTokens();
 
   if (!settings.appKey || !tokens) {
-    throw new Error("Dropbox is not connected.");
+    throw new SavePipelineError("Dropbox is not connected. Connect Dropbox to continue.", "AUTH_REQUIRED");
   }
 
   if (tokens.expiresAt > Date.now() + TOKEN_EXPIRY_SKEW_MS) {
