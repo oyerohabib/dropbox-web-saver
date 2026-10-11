@@ -56,6 +56,13 @@ describe("storage settings", () => {
       promptForRename: false,
       folderBehavior: "remember_last",
     });
+    expect(settings.saveModeSetByUser).toBe(false);
+  });
+
+  it("treats settings saved before the save mode flag existed as not chosen by the user", async () => {
+    store.set("settings", { appKey: "dropbox-key", lastUsedFolderPath: "/Designs" });
+
+    expect((await getSettings()).saveModeSetByUser).toBe(false);
   });
 
   it("merges partial preference updates without dropping other settings", async () => {
