@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { RecentSaves } from "../../components/RecentSaves";
+import { Button, StatusMessage, type StatusTone } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
 import type {
   DropboxAuthState,
@@ -8,13 +9,16 @@ import type {
   SavePreferences,
 } from "../../lib/types";
 
+type BusyAction = "appKey" | "connect" | "disconnect" | "preferences";
+
 export function OptionsApp() {
   const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
   const [settings, setSettings] = useState<ExtensionSettings | null>(null);
   const [recentSaves, setRecentSaves] = useState<RecentSaveRecord[]>([]);
   const [appKeyDraft, setAppKeyDraft] = useState("");
   const [preferencesDraft, setPreferencesDraft] = useState<SavePreferences | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ tone: StatusTone; text: string } | null>(null);
+  const [busyAction, setBusyAction] = useState<BusyAction | null>(null);
 
   async function load() {
     const [nextAuthState, nextSettings, nextRecentSaves] = await Promise.all([
@@ -33,62 +37,65 @@ export function OptionsApp() {
     void load();
   }, []);
 
-  async function saveAppKey() {
+  async function runAction(action: BusyAction, task: () => Promise<unknown>, success: string, failure: string) {
+    setBusyAction(action);
+    setMessage(null);
     try {
-      const nextSettings = await sendBackgroundMessage<ExtensionSettings>({
+      await task();
+      setMessage({ tone: "success", text: success });
+      await load();
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : failure });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  function saveAppKey() {
+    return runAction(
+      "appKey",
+      () => sendBackgroundMessage<ExtensionSettings>({
         type: "SAVE_SETTINGS",
-        settings: {
-          appKey: appKeyDraft.trim() || null,
-        },
-      });
-      setSettings(nextSettings);
-      setMessage("Dropbox app key saved.");
-      await load();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not save the Dropbox app key.");
-    }
+        settings: { appKey: appKeyDraft.trim() || null },
+      }),
+      "Dropbox app key saved.",
+      "Could not save the Dropbox app key.",
+    );
   }
 
-  async function connect() {
-    try {
-      await sendBackgroundMessage<DropboxAuthState>({ type: "CONNECT_DROPBOX" });
-      setMessage("Dropbox connected.");
-      await load();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Dropbox connection failed.");
-    }
+  function connect() {
+    return runAction(
+      "connect",
+      () => sendBackgroundMessage<DropboxAuthState>({ type: "CONNECT_DROPBOX" }),
+      "Dropbox connected.",
+      "Dropbox connection failed.",
+    );
   }
 
-  async function disconnect() {
-    try {
-      await sendBackgroundMessage<{ ok: true }>({ type: "DISCONNECT_DROPBOX" });
-      setMessage("Dropbox disconnected.");
-      await load();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not disconnect Dropbox.");
-    }
+  function disconnect() {
+    return runAction(
+      "disconnect",
+      () => sendBackgroundMessage<{ ok: true }>({ type: "DISCONNECT_DROPBOX" }),
+      "Dropbox disconnected.",
+      "Could not disconnect Dropbox.",
+    );
   }
 
-  async function savePreferences() {
+  function savePreferences() {
     if (!preferencesDraft) return;
-    try {
-      const nextSettings = await sendBackgroundMessage<ExtensionSettings>({
+    return runAction(
+      "preferences",
+      () => sendBackgroundMessage<ExtensionSettings>({
         type: "SAVE_SETTINGS",
-        settings: {
-          savePreferences: preferencesDraft,
-        },
-      });
-      setSettings(nextSettings);
-      setPreferencesDraft(nextSettings.savePreferences);
-      setMessage("Save preferences updated.");
-      await load();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not save your preferences.");
-    }
+        settings: { savePreferences: preferencesDraft },
+      }),
+      "Save preferences updated.",
+      "Could not save your preferences.",
+    );
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell page">
       <section className="hero">
         <div className="eyebrow">Settings</div>
         <h1>Configure the Dropbox app and connection once, then save from anywhere.</h1>
@@ -97,7 +104,7 @@ export function OptionsApp() {
         </p>
       </section>
 
-      {message ? <div className="callout info">{message}</div> : null}
+      {message ? <StatusMessage tone={message.tone}>{message.text}</StatusMessage> : null}
 
       <div className="options-grid">
         <section className="panel stack">
@@ -111,9 +118,9 @@ export function OptionsApp() {
               value={appKeyDraft}
             />
           </label>
-          <button className="primary-button" onClick={() => void saveAppKey()} type="button">
+          <Button loading={busyAction === "appKey"} onClick={() => void saveAppKey()}>
             Save App Key
-          </button>
+          </Button>
           <div className="muted">Redirect URI</div>
           <div className="path-pill">{authState?.redirectUri || "Loading..."}</div>
         </section>
@@ -130,24 +137,22 @@ export function OptionsApp() {
             Last folder: {settings?.lastUsedFolderPath || "No folder selected yet"}
           </div>
           <div className="actions-wrap">
-            <button
-              className="primary-button"
+            <Button
               disabled={!settings?.appKey}
+              loading={busyAction === "connect"}
               onClick={() => void connect()}
-              type="button"
             >
               Connect Dropbox
-            </button>
-            <button className="secondary-button" onClick={() => void disconnect()} type="button">
+            </Button>
+            <Button loading={busyAction === "disconnect"} onClick={() => void disconnect()} variant="secondary">
               Disconnect
-            </button>
-            <button
-              className="ghost-button"
+            </Button>
+            <Button
               onClick={() => void sendBackgroundMessage({ type: "OPEN_FOLDER_SETTINGS" })}
-              type="button"
+              variant="ghost"
             >
               Choose Default Folder
-            </button>
+            </Button>
           </div>
         </section>
 
@@ -156,7 +161,7 @@ export function OptionsApp() {
           <label className="stack">
             <span className="muted">Save mode</span>
             <select
-              className="text-input"
+              className="select-input"
               onChange={(event) =>
                 setPreferencesDraft((current) =>
                   current
@@ -175,7 +180,7 @@ export function OptionsApp() {
           <label className="stack">
             <span className="muted">Folder choice</span>
             <select
-              className="text-input"
+              className="select-input"
               onChange={(event) =>
                 setPreferencesDraft((current) =>
                   current
@@ -210,20 +215,19 @@ export function OptionsApp() {
           <div className="muted">
             Reviewed save is safer. One-click save skips the review window unless a folder choice or rename prompt still requires your input.
           </div>
-          <button
-            className="primary-button"
+          <Button
             disabled={!preferencesDraft}
+            loading={busyAction === "preferences"}
             onClick={() => void savePreferences()}
-            type="button"
           >
             Save Preferences
-          </button>
+          </Button>
         </section>
       </div>
 
       <RecentSaves items={recentSaves} />
 
-      <footer className="muted">
+      <footer className="muted page-footer">
         Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc.
       </footer>
     </div>
