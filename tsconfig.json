@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["chrome", "node", "vitest/globals"]
+    "types": ["chrome", "node", "vitest/globals", "@wxt-dev/auto-icons"]
   },
   "include": ["src", "wxt.config.ts", "vitest.config.ts"]
 }
