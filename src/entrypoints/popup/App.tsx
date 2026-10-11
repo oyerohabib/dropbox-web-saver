@@ -1,29 +1,26 @@
 import { useEffect, useState } from "react";
+import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
 import { Button, StatusMessage } from "../../components/ui";
-import { sendBackgroundMessage } from "../../lib/browser";
+import { openPreferencesTab, sendBackgroundMessage } from "../../lib/browser";
 import type {
   DropboxAuthState,
-  ExtensionSettings,
   RecentSaveRecord,
   StartScanFlowResponse,
 } from "../../lib/types";
 
 export function PopupApp() {
   const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
-  const [settings, setSettings] = useState<ExtensionSettings | null>(null);
   const [recentSaves, setRecentSaves] = useState<RecentSaveRecord[]>([]);
   const [loadingScan, setLoadingScan] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   async function load() {
-    const [nextAuthState, nextSettings, nextRecentSaves] = await Promise.all([
+    const [nextAuthState, nextRecentSaves] = await Promise.all([
       sendBackgroundMessage<DropboxAuthState>({ type: "GET_AUTH_STATE" }),
-      sendBackgroundMessage<ExtensionSettings>({ type: "GET_SETTINGS" }),
       sendBackgroundMessage<RecentSaveRecord[]>({ type: "GET_RECENT_SAVES" }),
     ]);
     setAuthState(nextAuthState);
-    setSettings(nextSettings);
     setRecentSaves(nextRecentSaves);
   }
 
@@ -49,64 +46,86 @@ export function PopupApp() {
     }
   }
 
+  const signedIn = authState?.status === "signed_in";
+
   return (
     <div className="app-shell popup">
-      <section className="hero">
-        <div className="eyebrow">Web Saver for Dropbox</div>
-        <h2>Find files on the page, review the destination, and save them into Dropbox.</h2>
-        <p>
-          {authState?.status === "signed_in"
-            ? `Connected${authState.accountEmail ? ` as ${authState.accountEmail}` : ""}.`
-            : "Dropbox is not connected yet."}
-        </p>
-      </section>
-
-      <section className="panel stack">
-        <div className="row row-between">
-          <div>
-            <div className="section-title">Find Assets On This Page</div>
-            <div className="muted">
-              Scan the current tab for images, videos, audio files, and linked downloads.
-            </div>
-          </div>
+      <header className="app-header">
+        <div className="brand">
+          <img alt="" src="/icons/48.png" />
+          <span className="truncate">Web Saver for Dropbox</span>
         </div>
-        <Button block loading={loadingScan} onClick={() => void startScanFlow()}>
-          {loadingScan ? "Scanning page…" : "Scan Page Assets"}
-        </Button>
-        <div className="muted">
-          Default folder: {settings?.lastUsedFolderPath || "No default folder chosen yet"}
-        </div>
-        {message ? <StatusMessage tone="error">{message}</StatusMessage> : null}
-      </section>
-
-      <section className="panel">
-        <div className="row row-between">
-          <div>
-            <div className="section-title">Quick Actions</div>
-            <div className="muted">Change the remembered folder or update Dropbox settings.</div>
-          </div>
-          <div className="actions-wrap">
-            <button
-              className="secondary-button"
-              onClick={() => {
-                void sendBackgroundMessage({ type: "OPEN_FOLDER_SETTINGS" }).then(() => window.close());
-              }}
-              type="button"
+        <div className="row">
+          {authState ? (
+            <span
+              className={`badge ${signedIn ? "success" : "neutral"}`}
+              title={signedIn ? authState.accountEmail ?? undefined : undefined}
             >
-              Choose Folder
-            </button>
+              <span className="status-dot" />
+              {signedIn ? "Connected" : "Not connected"}
+            </span>
+          ) : null}
+          <Button
+            aria-label="Save preferences"
+            onClick={() => void openPreferencesTab().then(() => window.close())}
+            title="Save preferences"
+            variant="icon"
+          >
+            ⚙
+          </Button>
+        </div>
+      </header>
+
+      {authState && !signedIn ? (
+        <StatusMessage tone="info">
+          <div className="stack-sm">
+            <span>
+              {authState.status === "missing_app_key"
+                ? "Add your Dropbox app key to get started."
+                : "Connect your Dropbox account to start saving."}
+            </span>
             <button
-              className="ghost-button"
+              className="link-button"
               onClick={() => {
                 chrome.runtime.openOptionsPage();
                 window.close();
               }}
               type="button"
             >
-              Settings
+              Open setup →
             </button>
           </div>
+        </StatusMessage>
+      ) : null}
+
+      <section className="panel stack">
+        <div>
+          <div className="section-title">Find files on this page</div>
+          <div className="muted">Images, videos, audio, and linked downloads.</div>
         </div>
+        <Button block large loading={loadingScan} onClick={() => void startScanFlow()}>
+          {loadingScan ? "Scanning page…" : "Scan this page"}
+        </Button>
+        {message ? <StatusMessage tone="error">{message}</StatusMessage> : null}
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div className="section-title">How saving works</div>
+          <button
+            className="link-button"
+            onClick={() => void openPreferencesTab().then(() => window.close())}
+            type="button"
+          >
+            All preferences
+          </button>
+        </div>
+        <PreferencesForm
+          onChooseFolder={() => {
+            void sendBackgroundMessage({ type: "OPEN_FOLDER_SETTINGS" }).then(() => window.close());
+          }}
+          variant="compact"
+        />
       </section>
 
       <RecentSaves items={recentSaves} />
