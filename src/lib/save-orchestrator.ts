@@ -24,6 +24,13 @@ import { SavePipelineError } from "./utils/errors";
 import { canUseUrlImport } from "./utils/asset";
 import { getDomain } from "./utils/url";
 
+function isAuthError(error: unknown): error is SavePipelineError {
+  return (
+    error instanceof SavePipelineError
+    && (error.code === "TOKEN_EXPIRED" || error.code === "AUTH_REQUIRED")
+  );
+}
+
 export interface SaveDependencies {
   fetchAssetBytes: (candidate: AssetCandidate, tabId?: number) => Promise<AssetFetchPayload>;
   probeAssetMetadata?: (candidate: AssetCandidate) => Promise<AssetProbeResult | null>;
@@ -126,7 +133,10 @@ export async function saveAsset(
         const imported = await saveUrlToDropbox(dropboxPath, candidate.sourceUrl);
         pathDisplay = imported.pathDisplay;
         method = "url_import";
-      } catch {
+      } catch (error) {
+        if (isAuthError(error) || (error instanceof SavePipelineError && error.code === "FOLDER_NOT_FOUND")) {
+          throw error;
+        }
         method = undefined;
       }
     }
@@ -184,6 +194,17 @@ export async function saveAsset(
     await setPendingSave(null);
     return result;
   } catch (error) {
+    if (isAuthError(error)) {
+      const result: SaveResult = {
+        ok: false,
+        status: "needs_auth",
+        errorCode: error.code,
+        message: error.message,
+      };
+      await setLastResult(result);
+      return result;
+    }
+
     const typedError =
       error instanceof SavePipelineError
         ? error

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { saveAsset } from "./save-orchestrator";
 import { getAuthState } from "./dropbox-auth";
 import { getCurrentAccount, saveUrlToDropbox, uploadFileToDropbox } from "./dropbox-api";
+import { SavePipelineError } from "./utils/errors";
 
 vi.mock("./dropbox-auth", () => ({
   getAuthState: vi.fn(),
@@ -321,6 +322,72 @@ describe("saveAsset", () => {
 
     expect(result.status).toBe("unsupported");
     expect(result.errorCode).toBe("UNSUPPORTED_TARGET");
+  });
+
+  it("asks the user to reconnect when Dropbox rejects the token mid-save", async () => {
+    vi.mocked(getAuthState).mockResolvedValue({
+      status: "signed_in",
+      appKey: "app-key",
+      redirectUri: "https://example.test",
+    });
+    vi.mocked(uploadFileToDropbox).mockRejectedValue(
+      new SavePipelineError("Your Dropbox connection expired or was revoked.", "TOKEN_EXPIRED"),
+    );
+
+    const result = await saveAsset(
+      {
+        candidate: {
+          sourceUrl: "https://app.example.com/private.png",
+          pageUrl: "https://app.example.com/work",
+          detectedType: "image",
+          suggestedFilename: "private.png",
+          requiresAuthenticatedFetch: true,
+        },
+        destinationPath: "/Designs",
+        tabId: 12,
+      },
+      {
+        fetchAssetBytes: vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          contentType: "image/png",
+          arrayBuffer: new Uint8Array([1, 2, 3]).buffer,
+        }),
+        now: () => 11,
+      },
+    );
+
+    expect(result.status).toBe("needs_auth");
+    expect(result.errorCode).toBe("TOKEN_EXPIRED");
+  });
+
+  it("does not hide an expired token behind the url-import fallback", async () => {
+    vi.mocked(getAuthState).mockResolvedValue({
+      status: "signed_in",
+      appKey: "app-key",
+      redirectUri: "https://example.test",
+    });
+    vi.mocked(saveUrlToDropbox).mockRejectedValue(
+      new SavePipelineError("Your Dropbox connection expired or was revoked.", "TOKEN_EXPIRED"),
+    );
+    const fetchAssetBytes = vi.fn();
+
+    const result = await saveAsset(
+      {
+        candidate: {
+          sourceUrl: "https://cdn.example.com/mockup.png",
+          pageUrl: "https://example.com/project",
+          detectedType: "image",
+          suggestedFilename: "mockup.png",
+          requiresAuthenticatedFetch: false,
+        },
+        destinationPath: "/Designs",
+      },
+      { fetchAssetBytes, now: () => 12 },
+    );
+
+    expect(result.status).toBe("needs_auth");
+    expect(fetchAssetBytes).not.toHaveBeenCalled();
   });
 
   it("returns an auth-required response when Dropbox is not connected", async () => {
