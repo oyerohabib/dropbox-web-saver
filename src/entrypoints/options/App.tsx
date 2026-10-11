@@ -1,21 +1,23 @@
 import { useEffect, useState } from "react";
 import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
+import { SetupWizard } from "../../components/SetupWizard";
 import { Button, CopyField, Skeleton, StatusMessage, type StatusTone } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
+import { maskAppKey } from "../../lib/utils/app-key";
 import type {
   DropboxAuthState,
   ExtensionSettings,
   RecentSaveRecord,
 } from "../../lib/types";
 
-type BusyAction = "appKey" | "connect" | "disconnect";
+type BusyAction = "disconnect";
 
 export function OptionsApp() {
   const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
   const [settings, setSettings] = useState<ExtensionSettings | null>(null);
   const [recentSaves, setRecentSaves] = useState<RecentSaveRecord[]>([]);
-  const [appKeyDraft, setAppKeyDraft] = useState("");
+  const [showGuide, setShowGuide] = useState(window.location.hash === "#setup");
   const [message, setMessage] = useState<{ tone: StatusTone; text: string } | null>(null);
   const [busyAction, setBusyAction] = useState<BusyAction | null>(null);
   const [clearingHistory, setClearingHistory] = useState(false);
@@ -30,7 +32,6 @@ export function OptionsApp() {
     ]);
     setAuthState(nextAuthState);
     setSettings(nextSettings);
-    setAppKeyDraft(nextSettings.appKey || "");
     setRecentSaves(nextRecentSaves);
   }
 
@@ -57,27 +58,6 @@ export function OptionsApp() {
     }
   }
 
-  function saveAppKey() {
-    return runAction(
-      "appKey",
-      () => sendBackgroundMessage<ExtensionSettings>({
-        type: "SAVE_SETTINGS",
-        settings: { appKey: appKeyDraft.trim() || null },
-      }),
-      "Dropbox app key saved.",
-      "Could not save the Dropbox app key.",
-    );
-  }
-
-  function connect() {
-    return runAction(
-      "connect",
-      () => sendBackgroundMessage<DropboxAuthState>({ type: "CONNECT_DROPBOX" }),
-      "Dropbox connected.",
-      "Dropbox connection failed.",
-    );
-  }
-
   function disconnect() {
     return runAction(
       "disconnect",
@@ -102,6 +82,20 @@ export function OptionsApp() {
 
   const signedIn = authState?.status === "signed_in";
 
+  const setupSection = (
+    <section className="panel" id="setup">
+      <div className="panel-header">
+        <div>
+          <div className="section-title">Set up Dropbox</div>
+          <div className="muted">
+            Web Saver connects through a small Dropbox app that you create in your own account.
+          </div>
+        </div>
+      </div>
+      <SetupWizard appKey={settings?.appKey ?? null} authState={authState} onChange={load} />
+    </section>
+  );
+
   return (
     <div className="app-shell page">
       <section className="hero">
@@ -112,16 +106,25 @@ export function OptionsApp() {
             <h1>Settings</h1>
           </div>
         </div>
-        <p>Choose how saving works, connect your Dropbox account, and review recent saves.</p>
+        <p>
+          {authState && !signedIn
+            ? "Finish the short setup below to start saving to Dropbox. Everything stays in this browser."
+            : "Choose how saving works, manage your Dropbox connection, and review recent saves."}
+        </p>
       </section>
 
       <nav aria-label="Settings sections" className="page-nav">
+        {authState && !signedIn ? <a href="#setup">Setup</a> : null}
         <a href="#preferences">Save preferences</a>
-        <a href="#connection">Dropbox connection</a>
+        {signedIn ? <a href="#connection">Dropbox connection</a> : null}
         <a href="#recent-saves">Recent saves</a>
       </nav>
 
       {message ? <StatusMessage tone={message.tone}>{message.text}</StatusMessage> : null}
+
+      {!authState ? <Skeleton rows={4} /> : null}
+
+      {authState && !signedIn ? setupSection : null}
 
       <section className="panel" id="preferences">
         <div className="panel-header">
@@ -137,67 +140,48 @@ export function OptionsApp() {
         />
       </section>
 
-      <div className="options-grid" id="connection">
-        <section className="panel stack">
-          <div className="row row-between">
-            <div className="section-title">Dropbox connection</div>
-            {authState ? (
-              <span className={`badge ${signedIn ? "success" : "neutral"}`}>
+      {signedIn && authState ? (
+        <div className="options-grid" id="connection">
+          <section className="panel stack">
+            <div className="row row-between">
+              <div className="section-title">Dropbox connection</div>
+              <span className="badge success">
                 <span className="status-dot" />
-                {signedIn ? "Connected" : "Not connected"}
+                Connected
               </span>
-            ) : null}
-          </div>
-          {!authState ? <Skeleton rows={2} /> : null}
-          <div className="muted break-anywhere" hidden={!authState}>
-            {signedIn
-              ? `Signed in${authState?.accountEmail ? ` as ${authState.accountEmail}` : ""}.`
-              : authState?.status === "missing_app_key"
-                ? "Add your Dropbox app key first, then connect."
-                : "Connect your Dropbox account to start saving."}
-          </div>
-          <div className="actions-wrap" hidden={!authState}>
-            {signedIn ? (
+            </div>
+            <div className="muted break-anywhere">
+              Signed in{authState.accountEmail ? ` as ${authState.accountEmail}` : ""}.
+            </div>
+            <div className="actions-wrap">
               <Button loading={busyAction === "disconnect"} onClick={() => void disconnect()} variant="ghost">
                 Disconnect
               </Button>
-            ) : (
-              <Button
-                disabled={!settings?.appKey}
-                loading={busyAction === "connect"}
-                onClick={() => void connect()}
-              >
-                Connect Dropbox
-              </Button>
-            )}
-          </div>
-        </section>
+            </div>
+          </section>
 
-        <section className="panel stack" id="dropbox-app">
-          <div className="section-title">Dropbox app</div>
-          <label className="field">
-            <span className="field-label">App key</span>
-            <input
-              className="text-input"
-              onChange={(event) => setAppKeyDraft(event.target.value)}
-              placeholder="Paste your Dropbox app key"
-              value={appKeyDraft}
-            />
-          </label>
-          <Button
-            disabled={appKeyDraft.trim() === (settings?.appKey ?? "")}
-            loading={busyAction === "appKey"}
-            onClick={() => void saveAppKey()}
-          >
-            Save App Key
-          </Button>
-          <div className="field">
-            <span className="field-label">Redirect URI</span>
-            {authState?.redirectUri ? <CopyField value={authState.redirectUri} /> : <Skeleton rows={1} />}
-            <span className="muted">Add this exact URI under OAuth 2 → Redirect URIs in your Dropbox app console.</span>
-          </div>
-        </section>
-      </div>
+          <section className="panel stack" id="dropbox-app">
+            <div className="section-title">Your Dropbox app</div>
+            <div className="row row-between">
+              <span className="row">
+                <span className="muted">App key</span>
+                <span className="path-pill">{maskAppKey(settings?.appKey ?? "")}</span>
+              </span>
+              <Button onClick={() => setShowGuide(true)} variant="ghost">Change</Button>
+            </div>
+            <div className="field">
+              <span className="field-label">Redirect URI</span>
+              <CopyField value={authState.redirectUri} />
+            </div>
+            <span className="muted">Stored only in this browser. Never sent to Web Saver.</span>
+            <button className="link-button" onClick={() => setShowGuide((current) => !current)} type="button">
+              {showGuide ? "Hide setup guide" : "Show setup guide"}
+            </button>
+          </section>
+        </div>
+      ) : null}
+
+      {signedIn && showGuide ? setupSection : null}
 
       <div id="recent-saves" style={{ scrollMarginTop: 16 }}>
         <RecentSaves
@@ -209,6 +193,8 @@ export function OptionsApp() {
 
       <footer className="muted page-footer">
         Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc.
+        {" · "}
+        <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
       </footer>
     </div>
   );
