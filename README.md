@@ -12,7 +12,7 @@ Contributions and feedback are welcome. See [Contributing](#contributing) and [F
 ## Features
 
 - Right-click actions: **Save this image / video / audio to Dropbox** and **Save the file this link opens to Dropbox**
-- **Find files on this page**: lists every image, video, audio file, and downloadable link on the current page so you can pick one
+- **Find files on this page**: lists the images, videos, audio files, and downloadable links on the current page with thumbnails, so you can tick several and save them all at once
 - Review window before each save: see the filename, rename it, and change the destination folder
 - Dropbox folder browser with clickable breadcrumbs, an "Up" row, inline **New folder** creation, and a **Default** badge on the current default folder
 - Per-user save preferences, reachable from the popup, the toolbar icon's right-click menu, the settings page, and every review window
@@ -84,6 +84,10 @@ Then in Chrome:
 - **Right-click a link** that points to a file (PDF, ZIP, image, or a link with a `download` attribute) and choose **Save the file this link opens to Dropbox**. Links to ordinary web pages are rejected with an error toast.
   - When an image is wrapped in a link, both items appear: the image item saves the picture you see, the link item saves whatever the link points to (often a larger original or a different file).
 - **Find files on a page**: right-click an empty spot and choose **Find files on this page to save to Dropbox**, or open the toolbar popup and click **Scan this page**.
+  - Videos, audio, and linked files are listed first, then images from largest to smallest. Nothing is selected until you tick it.
+  - Small images such as avatars, icons, and logos are hidden. Turn on **Show small images** to see them.
+  - Tick files one by one, or use **Select all** and **Clear**. Then click **Save N files**. Keep the window open while it shows "Saving 3 of 7…".
+  - When it finishes you see how many files were saved. If any failed, they're listed with the reason, and **Retry failed** tries just those again.
 - **Change the default folder**: click **Change** next to the default folder in the popup or on the settings page. A window opens showing your current default:
   - Open folders by clicking them, and go back with the breadcrumbs (for example **Dropbox › Photos › 2026**) or the **Up to …** row.
   - Click **+ New folder** to create a folder inside the one you're viewing. Web Saver opens it straight away.
