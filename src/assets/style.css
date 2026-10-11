@@ -792,6 +792,79 @@ a.secondary-button {
   margin-top: var(--space-3);
 }
 
+.app-shell.save-shell {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.current-default {
+  margin-top: var(--space-3);
+}
+
+.folder-picker .create-folder,
+.folder-picker .folder-list {
+  margin-top: 0;
+}
+
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.crumb {
+  max-width: 180px;
+  padding: 4px 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.crumb:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.crumb.current {
+  color: var(--ink);
+  font-weight: 600;
+  cursor: default;
+}
+
+.crumb-sep {
+  color: var(--muted);
+}
+
+.folder-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.folder-row.folder-up {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.folder-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
 .folder-list,
 .recent-list,
 .asset-list {
@@ -901,9 +974,10 @@ a.secondary-button {
   margin-top: var(--space-2);
 }
 
-@media (max-width: 640px) {
-  .folder-actions,
-  .create-folder {
+@media (max-width: 440px) {
+  .create-folder,
+  .folder-confirm {
     flex-direction: column;
+    align-items: stretch;
   }
 }
