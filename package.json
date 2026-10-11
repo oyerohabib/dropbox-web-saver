@@ -1,6 +1,17 @@
 {
   "name": "dropbox-web-saver-extension",
   "version": "0.1.0",
+  "description": "Chrome extension to save images, videos, audio and files from any web page straight into your Dropbox.",
+  "license": "MIT",
+  "author": "oyerohabib <oyerohabib@yahoo.com>",
+  "homepage": "https://github.com/oyerohabib/dropbox-web-saver#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oyerohabib/dropbox-web-saver.git"
+  },
+  "bugs": {
+    "url": "https://github.com/oyerohabib/dropbox-web-saver/issues"
+  },
   "private": true,
   "type": "module",
   "scripts": {
