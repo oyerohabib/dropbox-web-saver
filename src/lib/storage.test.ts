@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RECENT_SAVE_LIMIT } from "./constants";
-import { appendRecentSave, clearRecentSaves, getRecentSaves, getSettings, updateSettings } from "./storage";
+import {
+  appendRecentSave,
+  clearRecentSaves,
+  getRecentSaves,
+  getSettings,
+  getSetupProgress,
+  setSetupProgress,
+  updateSettings,
+} from "./storage";
 import type { RecentSaveRecord } from "./types";
 
 function makeRecord(id: string): RecentSaveRecord {
@@ -97,5 +105,27 @@ describe("recent saves", () => {
     await clearRecentSaves();
 
     expect(await getRecentSaves()).toEqual([]);
+  });
+});
+
+describe("setup progress", () => {
+  beforeEach(() => {
+    store.clear();
+  });
+
+  it("starts with every manual step unchecked", async () => {
+    expect(await getSetupProgress()).toEqual({
+      createdApp: false,
+      enabledScopes: false,
+      addedRedirectUri: false,
+    });
+  });
+
+  it("merges partial updates", async () => {
+    await setSetupProgress({ createdApp: true });
+    const next = await setSetupProgress({ addedRedirectUri: true });
+
+    expect(next).toEqual({ createdApp: true, enabledScopes: false, addedRedirectUri: true });
+    expect(await getSetupProgress()).toEqual(next);
   });
 });
