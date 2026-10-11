@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FolderPicker } from "../../components/FolderPicker";
 import { Button, Spinner, StatusMessage, type StatusTone } from "../../components/ui";
-import { sendBackgroundMessage } from "../../lib/browser";
+import { openPreferencesTab, sendBackgroundMessage } from "../../lib/browser";
 import { deriveCandidateFilename } from "../../lib/utils/filename";
 import { getDropboxWebUrl } from "../../lib/utils/url";
 import type {
@@ -327,6 +327,12 @@ export function SaveApp() {
           </div>
         </section>
       ) : null}
+
+      <footer className="page-footer">
+        <button className="link-button" onClick={() => void openPreferencesTab()} type="button">
+          Change how saving works
+        </button>
+      </footer>
     </div>
   );
 }
