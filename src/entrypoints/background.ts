@@ -51,6 +51,7 @@ const MENU_IDS = {
   audio: "save-audio-to-dropbox",
   link: "save-link-to-dropbox",
   scan: "scan-page-assets-for-dropbox",
+  preferences: "open-save-preferences",
 } as const;
 
 function getTriggerKind(menuItemId?: string): AssetTriggerKind | null {
@@ -389,29 +390,38 @@ async function initializeContextMenus() {
   await chrome.contextMenus.removeAll();
   chrome.contextMenus.create({
     id: MENU_IDS.image,
-    title: "Save image to Dropbox",
+    title: "Save this image to Dropbox",
     contexts: ["image"],
   });
   chrome.contextMenus.create({
     id: MENU_IDS.video,
-    title: "Save video to Dropbox",
+    title: "Save this video to Dropbox",
     contexts: ["video"],
   });
   chrome.contextMenus.create({
     id: MENU_IDS.audio,
-    title: "Save audio to Dropbox",
+    title: "Save this audio to Dropbox",
     contexts: ["audio"],
   });
   chrome.contextMenus.create({
     id: MENU_IDS.link,
-    title: "Save linked file to Dropbox",
+    title: "Save the file this link opens to Dropbox",
     contexts: ["link"],
   });
   chrome.contextMenus.create({
     id: MENU_IDS.scan,
-    title: "Scan page assets for Dropbox",
+    title: "Find files on this page to save to Dropbox",
     contexts: ["page", "selection"],
   });
+  chrome.contextMenus.create({
+    id: MENU_IDS.preferences,
+    title: "Save preferences",
+    contexts: ["action"],
+  });
+}
+
+function openPreferencesPage() {
+  return chrome.tabs.create({ url: chrome.runtime.getURL("options.html#preferences") });
 }
 
 export default defineBackground(() => {
@@ -431,6 +441,11 @@ export default defineBackground(() => {
 
   chrome.contextMenus.onClicked.addListener((info, tab) => {
     void (async () => {
+      if (info.menuItemId === MENU_IDS.preferences) {
+        await openPreferencesPage();
+        return;
+      }
+
       if (info.menuItemId === MENU_IDS.scan) {
         const response = await startScanFlow();
         if (!response.ok) {
