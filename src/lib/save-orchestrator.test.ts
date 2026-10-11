@@ -128,6 +128,43 @@ describe("saveAsset", () => {
     expect(result.method).toBe("direct_upload");
   });
 
+  it("fails cleanly instead of uploading when the fetched payload has no real bytes", async () => {
+    vi.mocked(getAuthState).mockResolvedValue({
+      status: "signed_in",
+      appKey: "app-key",
+      redirectUri: "https://example.test",
+    });
+
+    for (const arrayBuffer of [{} as ArrayBuffer, new ArrayBuffer(0)]) {
+      const result = await saveAsset(
+        {
+          candidate: {
+            sourceUrl: "https://app.example.com/private.png",
+            pageUrl: "https://app.example.com/work",
+            detectedType: "image",
+            suggestedFilename: "private.png",
+            requiresAuthenticatedFetch: true,
+          },
+          destinationPath: "/Designs",
+          tabId: 12,
+        },
+        {
+          fetchAssetBytes: vi.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            contentType: "image/png",
+            arrayBuffer,
+          }),
+          now: () => 8,
+        },
+      );
+
+      expect(result.ok).toBe(false);
+      expect(result.errorCode).toBe("ASSET_FETCH_FAILED");
+    }
+    expect(uploadFileToDropbox).not.toHaveBeenCalled();
+  });
+
   it("prefers a user-edited final filename when provided", async () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",

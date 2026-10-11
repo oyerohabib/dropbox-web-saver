@@ -147,7 +147,11 @@ export async function saveAsset(
 
     if (!pathDisplay) {
       const assetPayload = await dependencies.fetchAssetBytes(request.candidate, request.tabId);
-      if (!assetPayload.ok || !assetPayload.arrayBuffer) {
+      if (
+        !assetPayload.ok
+        || !(assetPayload.arrayBuffer instanceof ArrayBuffer)
+        || assetPayload.arrayBuffer.byteLength === 0
+      ) {
         throw new SavePipelineError(
           assetPayload.error || "Could not fetch the source asset from the page.",
           "ASSET_FETCH_FAILED",
