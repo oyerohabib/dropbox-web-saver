@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FolderPicker } from "../../components/FolderPicker";
 import { Button, Spinner, StatusMessage, type StatusTone } from "../../components/ui";
-import { openPreferencesTab, openSettingsTab, sendBackgroundMessage } from "../../lib/browser";
+import { openFeedbackTab, openPreferencesTab, openSettingsTab, sendBackgroundMessage } from "../../lib/browser";
 import { deriveCandidateFilename } from "../../lib/utils/filename";
 import { getDropboxWebUrl } from "../../lib/utils/url";
 import type {
@@ -194,7 +194,23 @@ export function SaveApp() {
         {!saveFlow ? <p>Saves go here unless you pick another folder.</p> : null}
       </section>
 
-      {status ? <StatusMessage tone={status.tone}>{status.text}</StatusMessage> : null}
+      {status ? (
+        <StatusMessage tone={status.tone}>
+          {status.text}
+          {status.tone === "error" ? (
+            <>
+              {" "}
+              <button
+                className="link-button"
+                onClick={() => void openFeedbackTab({ kind: "bug", message: `Error shown: ${status.text}\n\n` })}
+                type="button"
+              >
+                Report this problem
+              </button>
+            </>
+          ) : null}
+        </StatusMessage>
+      ) : null}
 
       {authState?.status !== "signed_in" ? (
         <section className="panel stack">
@@ -340,6 +356,10 @@ export function SaveApp() {
         </button>
         <span className="muted">{" · "}</span>
         <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
+        <span className="muted">{" · "}</span>
+        <button className="link-button" onClick={() => void openFeedbackTab()} type="button">
+          Send feedback
+        </button>
       </footer>
     </div>
   );
