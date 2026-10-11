@@ -529,7 +529,7 @@ export function SaveApp() {
                   onChange={(event) => toggleSmallImages(event.target.checked)}
                   type="checkbox"
                 />
-                Show {smallImageCount} small image{smallImageCount === 1 ? "" : "s"}
+                {`Show ${smallImageCount} small image${smallImageCount === 1 ? "" : "s"}`}
               </label>
             ) : null}
           </div>
