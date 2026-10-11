@@ -15,6 +15,11 @@ export function isLikelyDirectAssetUrl(value: string): boolean {
   );
 }
 
+export function getDropboxWebUrl(folderPath: string): string {
+  const segments = folderPath.split("/").filter(Boolean).map(encodeURIComponent);
+  return ["https://www.dropbox.com/home", ...segments].join("/");
+}
+
 export function getDomain(value: string): string {
   try {
     return new URL(value).hostname;
