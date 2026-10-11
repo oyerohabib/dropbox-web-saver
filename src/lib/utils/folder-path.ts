@@ -18,6 +18,10 @@ export function getFolderName(path: string): string {
   return getSegments(path).at(-1) ?? ROOT_FOLDER_LABEL;
 }
 
+export function formatFolderPath(path: string): string {
+  return getSegments(path).length === 0 ? `${ROOT_FOLDER_LABEL} (top level)` : path;
+}
+
 export function getBreadcrumbs(path: string): FolderCrumb[] {
   const segments = getSegments(path);
   return [

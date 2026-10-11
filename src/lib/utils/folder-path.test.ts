@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getBreadcrumbs, getFolderName, getParentPath, isSameFolder } from "./folder-path";
+import { formatFolderPath, getBreadcrumbs, getFolderName, getParentPath, isSameFolder } from "./folder-path";
 
 describe("getParentPath", () => {
   it.each([
@@ -16,6 +16,13 @@ describe("getFolderName", () => {
   it("returns the last segment, or Dropbox for the root", () => {
     expect(getFolderName("/Photos/2026")).toBe("2026");
     expect(getFolderName("/")).toBe("Dropbox");
+  });
+});
+
+describe("formatFolderPath", () => {
+  it("names the root folder and leaves other paths alone", () => {
+    expect(formatFolderPath("/")).toBe("Dropbox (top level)");
+    expect(formatFolderPath("/Photos")).toBe("/Photos");
   });
 });
 
