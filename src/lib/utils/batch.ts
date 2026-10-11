@@ -17,6 +17,8 @@ export interface BatchSummary {
   savedCount: number;
   failures: BatchFailure[];
   switchedToInstant: boolean;
+  /** Sites the user must allow before the failed files can be retried. */
+  permissionOrigins: string[];
 }
 
 export function summarizeBatch(results: BatchItemResult[]): BatchSummary {
@@ -33,5 +35,12 @@ export function summarizeBatch(results: BatchItemResult[]): BatchSummary {
     savedCount: results.length - failures.length,
     failures,
     switchedToInstant: results.some(({ result }) => Boolean(result.switchedToInstant)),
+    permissionOrigins: [
+      ...new Set(
+        results.flatMap(({ result }) =>
+          result.status === "needs_permission" && result.permissionOrigin ? [result.permissionOrigin] : [],
+        ),
+      ),
+    ],
   };
 }
