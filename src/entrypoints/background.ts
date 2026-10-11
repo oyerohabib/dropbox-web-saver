@@ -5,6 +5,7 @@ import {
   ensureContentScript,
   fetchAssetBytesFromTab,
   getActiveTab,
+  openPreferencesTab,
   RestrictedPageError,
   sendMessageToTab,
 } from "../lib/browser";
@@ -420,15 +421,14 @@ async function initializeContextMenus() {
   });
 }
 
-function openPreferencesPage() {
-  return chrome.tabs.create({ url: chrome.runtime.getURL("options.html#preferences") });
-}
-
 export default defineBackground(() => {
   void initializeContextMenus();
 
-  chrome.runtime.onInstalled.addListener(() => {
+  chrome.runtime.onInstalled.addListener((details) => {
     void initializeContextMenus();
+    if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
+      void chrome.runtime.openOptionsPage();
+    }
   });
 
   chrome.windows.onRemoved.addListener((windowId) => {
@@ -442,7 +442,7 @@ export default defineBackground(() => {
   chrome.contextMenus.onClicked.addListener((info, tab) => {
     void (async () => {
       if (info.menuItemId === MENU_IDS.preferences) {
-        await openPreferencesPage();
+        await openPreferencesTab();
         return;
       }
 

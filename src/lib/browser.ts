@@ -29,6 +29,10 @@ export async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   return tab;
 }
 
+export function openPreferencesTab() {
+  return chrome.tabs.create({ url: chrome.runtime.getURL("options.html#preferences") });
+}
+
 export class RestrictedPageError extends Error {
   constructor() {
     super("Web Saver can't run on this page. Try a regular website tab.");
