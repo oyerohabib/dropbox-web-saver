@@ -135,44 +135,68 @@ async function reportUnsupportedTarget(message: string): Promise<SaveResult> {
   return result;
 }
 
-async function fetchAssetBytes(candidate: AssetCandidate, tabId?: number): Promise<AssetFetchPayload> {
-  if (candidate.requiresAuthenticatedFetch && tabId) {
-    try {
-      return await fetchAssetBytesFromTab(tabId, candidate.sourceUrl, candidate.referrer);
-    } catch (error) {
+async function fetchAssetBytesInBackground(
+  candidate: AssetCandidate,
+  includeCredentials: boolean,
+): Promise<AssetFetchPayload> {
+  try {
+    const response = await fetch(candidate.sourceUrl, {
+      credentials: includeCredentials ? "include" : "omit",
+    });
+    if (!response.ok) {
       return {
         ok: false,
-        status: 0,
-        contentType: null,
-        error: error instanceof Error ? error.message : "Could not fetch bytes from the page.",
+        status: response.status,
+        contentType: response.headers.get("content-type"),
+        finalUrl: response.url,
+        contentDispositionFilename: response.headers.get("content-disposition"),
+        error: `Source fetch failed (${response.status})`,
       };
     }
-  }
-
-  const response = await fetch(candidate.sourceUrl, {
-    credentials: candidate.requiresAuthenticatedFetch ? "include" : "omit",
-    referrer: candidate.referrer,
-  }).catch((error: Error) => {
-    throw new Error(error.message);
-  });
-  if (!response.ok) {
     return {
-      ok: false,
+      ok: true,
       status: response.status,
       contentType: response.headers.get("content-type"),
       finalUrl: response.url,
       contentDispositionFilename: response.headers.get("content-disposition"),
-      error: `Source fetch failed (${response.status})`,
+      arrayBuffer: await response.arrayBuffer(),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      contentType: null,
+      error: error instanceof Error ? error.message : "Could not fetch the source asset.",
     };
   }
-  return {
-    ok: true,
-    status: response.status,
-    contentType: response.headers.get("content-type"),
-    finalUrl: response.url,
-    contentDispositionFilename: response.headers.get("content-disposition"),
-    arrayBuffer: await response.arrayBuffer(),
-  };
+}
+
+async function fetchAssetBytes(candidate: AssetCandidate, tabId?: number): Promise<AssetFetchPayload> {
+  if (!candidate.requiresAuthenticatedFetch || !tabId) {
+    return fetchAssetBytesInBackground(candidate, candidate.requiresAuthenticatedFetch);
+  }
+
+  let tabError: string | undefined;
+  try {
+    const payload = await fetchAssetBytesFromTab(tabId, candidate.sourceUrl, candidate.referrer);
+    if (payload.ok) return payload;
+    tabError = payload.error;
+  } catch (error) {
+    tabError = error instanceof Error ? error.message : undefined;
+  }
+
+  // blob: URLs only exist inside the page, so there is nothing to fall back to.
+  if (candidate.sourceUrl.startsWith("blob:")) {
+    return {
+      ok: false,
+      status: 0,
+      contentType: null,
+      error: tabError || "Could not read this asset from the page.",
+    };
+  }
+
+  const fallback = await fetchAssetBytesInBackground(candidate, true);
+  return fallback.ok ? fallback : { ...fallback, error: tabError || fallback.error };
 }
 
 async function executeSaveRequest(request: SaveRequest, reason?: "auth_required" | "folder_required") {
