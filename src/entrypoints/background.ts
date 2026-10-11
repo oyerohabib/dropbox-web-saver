@@ -36,13 +36,14 @@ import type {
   ExtensionSettings,
   SaveRequest,
   SaveResult,
+  SaveToastStatus,
   ScanPageAssetsResponse,
   StartScanFlowResponse,
 } from "../lib/types";
 import { applyProbeResult, probeAssetMetadata } from "../lib/asset-probe";
 import { detectAssetType } from "../lib/utils/asset";
 import { deriveCandidateFilename, hasExtension } from "../lib/utils/filename";
-import { isLikelyDirectAssetUrl } from "../lib/utils/url";
+import { getDropboxWebUrl, isLikelyDirectAssetUrl } from "../lib/utils/url";
 
 const MENU_IDS = {
   image: "save-image-to-dropbox",
@@ -132,20 +133,50 @@ async function openFolderSettingsWindow() {
   await openSaveWindow();
 }
 
-async function setBadgeForResult(result: SaveResult) {
-  await chrome.action.setBadgeBackgroundColor({
-    color: result.ok ? "#0b7a55" : "#ad2d2d",
-  });
-  await chrome.action.setBadgeText({
-    text: result.ok ? "OK" : "ERR",
-  });
+let badgeResetTimer: ReturnType<typeof setTimeout> | undefined;
 
-  setTimeout(() => {
-    void chrome.action.setBadgeText({ text: "" });
-  }, BADGE_RESET_DELAY_MS);
+async function setBadge(text: string, color: string, resetAfterMs?: number) {
+  clearTimeout(badgeResetTimer);
+  await chrome.action.setBadgeBackgroundColor({ color });
+  await chrome.action.setBadgeText({ text });
+  if (resetAfterMs) {
+    badgeResetTimer = setTimeout(() => {
+      void chrome.action.setBadgeText({ text: "" });
+    }, resetAfterMs);
+  }
 }
 
-async function reportUnsupportedTarget(message: string): Promise<SaveResult> {
+async function setBadgeForResult(result: SaveResult) {
+  await setBadge(result.ok ? "OK" : "ERR", result.ok ? "#1E8E3E" : "#D93025", BADGE_RESET_DELAY_MS);
+}
+
+async function showSaveStatusInTab(tabId: number | undefined, status: SaveToastStatus) {
+  if (tabId === undefined) return;
+  try {
+    await ensureContentScript(tabId);
+    await sendMessageToTab(tabId, { type: "SHOW_SAVE_STATUS", status });
+  } catch {
+    // Restricted pages cannot show toasts; the toolbar badge still reports the result.
+  }
+}
+
+function toastForResult(result: SaveResult, request: SaveRequest): SaveToastStatus {
+  const folderPath = request.destinationPath || "/";
+  if (result.ok) {
+    return {
+      state: "success",
+      filename: result.filename,
+      folderPath,
+      dropboxUrl: getDropboxWebUrl(folderPath),
+    };
+  }
+  if (result.status === "needs_auth" || result.status === "needs_folder") {
+    return { state: "hidden" };
+  }
+  return { state: "error", filename: result.filename, folderPath, message: result.message };
+}
+
+async function reportUnsupportedTarget(message: string, tabId?: number): Promise<SaveResult> {
   const result: SaveResult = {
     ok: false,
     status: "unsupported",
@@ -154,6 +185,7 @@ async function reportUnsupportedTarget(message: string): Promise<SaveResult> {
   };
   await setLastResult(result);
   await setBadgeForResult(result);
+  await showSaveStatusInTab(tabId, { state: "error", message });
   return result;
 }
 
@@ -225,7 +257,21 @@ async function executeSaveRequest(
   request: SaveRequest,
   options: { fromSaveWindow?: boolean } = {},
 ) {
+  const willUpload =
+    Boolean(request.destinationPath) && (await getAuthState()).status === "signed_in";
+  if (willUpload) {
+    await setBadge("…", "#0061FE");
+    await showSaveStatusInTab(request.tabId, {
+      state: "saving",
+      filename: deriveCandidateFilename(request.candidate, request.finalFilename),
+      folderPath: request.destinationPath ?? "/",
+    });
+  }
+
   const result = await saveAsset(request, { fetchAssetBytes, probeAssetMetadata });
+  if (willUpload) {
+    await showSaveStatusInTab(request.tabId, toastForResult(result, request));
+  }
   // Saves started from the save window keep its existing pending flow; reopening would close that window.
   if (!options.fromSaveWindow && (result.status === "needs_auth" || result.status === "needs_folder")) {
     await setPendingSave(
@@ -388,7 +434,7 @@ export default defineBackground(() => {
       if (info.menuItemId === MENU_IDS.scan) {
         const response = await startScanFlow();
         if (!response.ok) {
-          await reportUnsupportedTarget(response.message);
+          await reportUnsupportedTarget(response.message, tab?.id);
         }
         return;
       }
@@ -411,6 +457,7 @@ export default defineBackground(() => {
         ) {
           await reportUnsupportedTarget(
             "This link does not appear to point to a downloadable file or media asset.",
+            tab?.id,
           );
           return;
         }
