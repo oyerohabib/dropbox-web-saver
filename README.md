@@ -103,9 +103,11 @@ Preferences save automatically. Open them from any of these places:
 
 | Preference | Options |
 | --- | --- |
-| When I save | **Review first** (default) shows the review window. **Save instantly** uploads straight to the remembered folder. |
+| When I save | **Review first** shows the review window. **Save instantly** uploads straight to the remembered folder. New installs start on Review first for the first save, then switch to Save instantly once. They never switch again after you pick a mode yourself. |
 | Folder | **Use last folder** (default) or **Ask every time** |
 | Rename files | When on, the review window shows an editable filename |
+
+Your first save opens the review window so you can pick a folder. Once it succeeds, the window says that later saves go straight to that folder. Click **Keep reviewing each save** there to stay on Review first. The automatic switch only happens when the folder setting is **Use last folder** and renaming is off, because Save instantly would still open the window otherwise.
 
 Save instantly still opens the review window when a choice is needed: Dropbox isn't connected, no folder is remembered, the folder is set to ask every time, or renaming is on.
 
