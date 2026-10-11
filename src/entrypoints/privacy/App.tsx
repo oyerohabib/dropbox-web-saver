@@ -33,7 +33,10 @@ export function PrivacyApp() {
             Your Dropbox app key, sign-in tokens, and settings are stored only in this browser&apos;s extension
             storage on your computer.
           </li>
-          <li>The developer never receives your app key, tokens, files, browsing activity, or any other data.</li>
+          <li>
+            The developer never receives your app key, tokens, files, or browsing activity. The only thing the developer
+            ever gets is feedback you choose to send yourself.
+          </li>
           <li>No analytics, no tracking, no ads, and nothing is sold or shared.</li>
         </ul>
       </Section>
@@ -82,7 +85,43 @@ export function PrivacyApp() {
             type. Requests use your normal browser session for that site, exactly as if you downloaded it yourself.
           </li>
         </ul>
-        <p>Nothing is sent to the developer or to any other service.</p>
+        <p>Nothing is sent to the developer or to any other service, unless you choose to send feedback as described below.</p>
+      </Section>
+
+      <Section title="Feedback">
+        <p>Sending feedback is always your choice, and you always send it yourself:</p>
+        <ul>
+          <li>
+            <strong>Send feedback</strong> opens a GitHub issue form, or your email app, with your message filled in.
+            Nothing is sent until you submit it there, and you can edit everything first.
+          </li>
+          <li>
+            GitHub issues are public and are handled under the{" "}
+            <a
+              href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              GitHub privacy statement
+            </a>
+            . Emails go privately to the developer, who may copy the feedback into a GitHub issue without your name or
+            email address.
+          </li>
+          <li>
+            If <strong>Include version and browser info</strong> is on, the message includes the extension version,
+            your browser and operating system (for example &quot;Chrome 141 on macOS&quot;), and whether Dropbox is
+            connected. It never includes your app key, tokens, browsing history, or saved files.
+          </li>
+          <li>
+            <strong>Report this problem</strong> in the review window copies the error message into the form. Error
+            messages can mention a file&apos;s web address, so remove anything you don&apos;t want to share before
+            submitting.
+          </li>
+          <li>
+            When you uninstall the extension, your browser opens the GitHub feedback form so you can say why. Nothing
+            is sent unless you submit it, and you can simply close the tab.
+          </li>
+        </ul>
       </Section>
 
       <Section title="Why the extension needs each permission">

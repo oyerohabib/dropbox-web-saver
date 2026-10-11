@@ -6,7 +6,7 @@ Last updated October 11, 2026
 
 - There is no Web Saver server. The extension runs entirely in your browser.
 - Your Dropbox app key, sign-in tokens, and settings are stored only in this browser's extension storage on your computer.
-- The developer never receives your app key, tokens, files, browsing activity, or any other data.
+- The developer never receives your app key, tokens, files, or browsing activity. The only thing the developer ever gets is feedback you choose to send yourself.
 - No analytics, no tracking, no ads, and nothing is sold or shared.
 
 ## What is stored on your computer
@@ -27,7 +27,17 @@ Web Saver only talks to two kinds of places, and only when you ask it to save so
 - **Dropbox** (`www.dropbox.com`, `api.dropboxapi.com`, `content.dropboxapi.com`), to sign you in, list and create folders, and upload the files you choose. For public files, Web Saver may ask Dropbox to download the file directly from its address, so Dropbox receives that address. Dropbox handles this data under the [Dropbox privacy policy](https://www.dropbox.com/privacy).
 - **The website hosting the file** you chose to save, to download it and to check its file type. Requests use your normal browser session for that site, exactly as if you downloaded it yourself.
 
-Nothing is sent to the developer or to any other service.
+Nothing is sent to the developer or to any other service, unless you choose to send feedback as described below.
+
+## Feedback
+
+Sending feedback is always your choice, and you always send it yourself:
+
+- **Send feedback** opens a GitHub issue form, or your email app, with your message filled in. Nothing is sent until you submit it there, and you can edit everything first.
+- GitHub issues are public and are handled under the [GitHub privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement). Emails go privately to the developer, who may copy the feedback into a GitHub issue without your name or email address.
+- If **Include version and browser info** is on, the message includes the extension version, your browser and operating system (for example "Chrome 141 on macOS"), and whether Dropbox is connected. It never includes your app key, tokens, browsing history, or saved files.
+- **Report this problem** in the review window copies the error message into the form. Error messages can mention a file's web address, so remove anything you don't want to share before submitting.
+- When you uninstall the extension, your browser opens the GitHub feedback form so you can say why. Nothing is sent unless you submit it, and you can simply close the tab.
 
 ## Why the extension needs each permission
 
@@ -53,6 +63,6 @@ Web Saver requests the `account_info.read`, `files.metadata.read`, `files.metada
 
 ## Changes and contact
 
-If this policy changes, the "Last updated" date above will change too. Questions: [add your contact email or website here].
+If this policy changes, the "Last updated" date above will change too. Questions: email oyerohabib@yahoo.com or [open an issue on GitHub](https://github.com/oyerohabib/dropbox-web-saver/issues).
 
 Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc.
