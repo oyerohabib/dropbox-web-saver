@@ -216,11 +216,16 @@ export function SaveApp() {
                     From now on, saves go straight to <strong>{formatFolderPath(savedTo.folderPath)}</strong> without
                     this window. You&apos;ll see a notice on the page when each one finishes.
                   </StatusMessage>
-                  <div className="actions-wrap" style={{ justifyContent: "center" }}>
+                  <div className="stack-sm" style={{ alignItems: "center" }}>
                     <Button onClick={() => window.close()}>Done</Button>
-                    <Button loading={keepingReview} onClick={() => void keepReviewing()} variant="secondary">
-                      Keep reviewing each save
-                    </Button>
+                    <button
+                      className="link-button"
+                      disabled={keepingReview}
+                      onClick={() => void keepReviewing()}
+                      type="button"
+                    >
+                      {keepingReview ? "Saving…" : "Keep reviewing each save"}
+                    </button>
                   </div>
                 </>
               )}
