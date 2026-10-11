@@ -21,6 +21,26 @@ Contributions and feedback are welcome. See [Contributing](#contributing) and [F
   - Dropbox-side URL import for public assets
   - Direct upload of bytes fetched with the page's login session for private or same-site assets
 - Recent saves log (last 20) with relative times, folder links, and a **Clear history** button
+- Supports common image, video, audio, document, archive, and design formats. See [Supported files](#supported-files).
+
+## Supported files
+
+Right-clicking an image, video, or audio element saves it whatever its format, because the extension uses the file the element is showing.
+
+Links and **Find files on this page** recognise files by the extension in the URL:
+
+| Type | Extensions |
+| --- | --- |
+| Images | jpg, jpeg, png, gif, webp, avif, heic, heif, svg, bmp, tif, tiff |
+| Video | mp4, webm, mov, m4v, mkv, avi, mpeg, mpg, ogv, 3gp |
+| Audio | mp3, m4a, aac, wav, ogg, oga, opus, flac |
+| Documents | pdf, doc, docx, xls, xlsx, ppt, pptx, odt, ods, odp, rtf, txt, csv, epub |
+| Archives | zip, rar, 7z, tar, gz |
+| Design files | psd, ai, eps, fig, sketch, xd |
+
+A link to any other file still works when it has a `download` attribute, or when the site sends it as a download rather than a web page. Streamed video and `blob:` sources can't be saved (see [Known limitations](#known-limitations)). The settings page shows the same list under **Supported files**.
+
+The list lives in `src/lib/utils/file-types.ts`. The scanner, the right-click link check, and the settings page all read from it, so update this table when you change it.
 
 ## Dropbox app setup
 
@@ -81,7 +101,7 @@ Then in Chrome:
 ## Using it
 
 - **Right-click an image, video, or audio element** and choose **Save this image / video / audio to Dropbox**.
-- **Right-click a link** that points to a file (PDF, ZIP, image, or a link with a `download` attribute) and choose **Save the file this link opens to Dropbox**. Links to ordinary web pages are rejected with an error toast.
+- **Right-click a link** that points to a file (any [supported file](#supported-files), or a link with a `download` attribute) and choose **Save the file this link opens to Dropbox**. Links to ordinary web pages are rejected with an error toast.
   - When an image is wrapped in a link, both items appear: the image item saves the picture you see, the link item saves whatever the link points to (often a larger original or a different file).
 - **Find files on a page**: right-click an empty spot and choose **Find files on this page to save to Dropbox**, or open the toolbar popup and click **Scan this page**.
   - Videos, audio, and linked files are listed first, then images from largest to smallest. Nothing is selected until you tick it.
