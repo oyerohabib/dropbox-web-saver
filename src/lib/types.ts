@@ -183,7 +183,19 @@ export type ContentScriptMessage =
       type: "FETCH_ASSET_BYTES";
       url: string;
       referrer?: string;
+    }
+  | {
+      type: "SHOW_SAVE_STATUS";
+      status: SaveToastStatus;
     };
+
+export interface SaveToastStatus {
+  state: "saving" | "success" | "error" | "hidden";
+  filename?: string;
+  folderPath?: string;
+  message?: string;
+  dropboxUrl?: string;
+}
 
 export interface ScanPageAssetsResponse {
   assets: AssetCandidate[];
