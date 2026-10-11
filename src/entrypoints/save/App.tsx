@@ -261,7 +261,7 @@ export function SaveApp() {
           <div className="row row-between">
             <div className="section-title">Ready to save</div>
             <span className="badge neutral">
-              {reviewCandidate.triggerKind === "linked_file" ? "Linked file" : "Media asset"}
+              {reviewCandidate.triggerKind === "linked_file" ? "File from link" : "Media asset"}
             </span>
           </div>
           {shouldPromptForRename ? (
