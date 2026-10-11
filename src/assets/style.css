@@ -850,6 +850,27 @@ a.secondary-button {
   font-size: 13px;
 }
 
+.policy-section p,
+.policy-section ul {
+  margin: 0;
+}
+
+.policy-section ul {
+  padding-left: 20px;
+}
+
+.policy-section li + li {
+  margin-top: 6px;
+}
+
+.policy-section code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--surface-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
 .page-footer {
   padding-top: var(--space-2);
   text-align: center;
