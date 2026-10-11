@@ -169,6 +169,7 @@ export type BackgroundMessage =
   | { type: "START_SCAN_FLOW" };
 
 export type ContentScriptMessage =
+  | { type: "PING" }
   | { type: "SCAN_PAGE_ASSETS" }
   | {
       type: "DESCRIBE_ASSET_TARGET";
@@ -184,6 +185,10 @@ export type ContentScriptMessage =
 export interface ScanPageAssetsResponse {
   assets: AssetCandidate[];
 }
+
+export type StartScanFlowResponse =
+  | { ok: true; flow: PendingScanState }
+  | { ok: false; message: string };
 
 export interface AssetDescriptionResponse {
   preferredFilename?: string | null;

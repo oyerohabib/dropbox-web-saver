@@ -180,6 +180,11 @@ export default defineContentScript({
   main() {
     chrome.runtime.onMessage.addListener((message: ContentScriptMessage, _sender, sendResponse) => {
       void (async () => {
+        if (message.type === "PING") {
+          sendResponse({ ok: true });
+          return;
+        }
+
         if (message.type === "SCAN_PAGE_ASSETS") {
           sendResponse({ assets: scanPageAssets() });
           return;

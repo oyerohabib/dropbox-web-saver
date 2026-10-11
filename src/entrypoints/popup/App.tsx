@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { RecentSaves } from "../../components/RecentSaves";
 import { sendBackgroundMessage } from "../../lib/browser";
-import type { DropboxAuthState, ExtensionSettings, RecentSaveRecord } from "../../lib/types";
+import type {
+  DropboxAuthState,
+  ExtensionSettings,
+  RecentSaveRecord,
+  StartScanFlowResponse,
+} from "../../lib/types";
 
 export function PopupApp() {
   const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
@@ -28,11 +33,11 @@ export function PopupApp() {
   async function startScanFlow() {
     setLoadingScan(true);
     try {
-      const response = await sendBackgroundMessage<unknown>({
+      const response = await sendBackgroundMessage<StartScanFlowResponse>({
         type: "START_SCAN_FLOW",
       });
-      if (!response) {
-        setMessage("No supported images, videos, audio files, or linked files were found on this page.");
+      if (!response.ok) {
+        setMessage(response.message);
       } else {
         window.close();
       }

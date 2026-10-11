@@ -8,6 +8,8 @@ import type {
 } from "./types";
 import { base64ToArrayBuffer } from "./utils/binary";
 
+const CONTENT_SCRIPT_FILE = "content-scripts/content.js";
+
 export async function sendBackgroundMessage<T>(message: BackgroundMessage): Promise<T> {
   return chrome.runtime.sendMessage(message) as Promise<T>;
 }
@@ -33,11 +35,36 @@ export async function scanActiveTabAssets(): Promise<AssetCandidate[]> {
   return response.assets;
 }
 
+export class RestrictedPageError extends Error {
+  constructor() {
+    super("Dropbox Saver can't run on this page. Try a regular website tab.");
+  }
+}
+
+export async function ensureContentScript(tabId: number): Promise<void> {
+  try {
+    const response = await sendMessageToTab<{ ok?: boolean } | undefined>(tabId, { type: "PING" });
+    if (response?.ok) return;
+  } catch {
+    // No listener in this tab yet (opened before the extension was installed or reloaded).
+  }
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: [CONTENT_SCRIPT_FILE],
+    });
+  } catch {
+    throw new RestrictedPageError();
+  }
+}
+
 export async function fetchAssetBytesFromTab(
   tabId: number,
   url: string,
   referrer?: string,
 ): Promise<AssetFetchPayload> {
+  await ensureContentScript(tabId);
   const { base64, ...payload } = await sendMessageToTab<AssetFetchPayload>(tabId, {
     type: "FETCH_ASSET_BYTES",
     url,
@@ -50,6 +77,7 @@ export async function describeAssetTargetInTab(
   tabId: number,
   url: string,
 ): Promise<AssetDescriptionResponse> {
+  await ensureContentScript(tabId);
   return sendMessageToTab<AssetDescriptionResponse>(tabId, {
     type: "DESCRIBE_ASSET_TARGET",
     url,

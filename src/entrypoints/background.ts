@@ -2,8 +2,11 @@ import { defineBackground } from "wxt/utils/define-background";
 import { BADGE_RESET_DELAY_MS } from "../lib/constants";
 import {
   describeAssetTargetInTab,
+  ensureContentScript,
   fetchAssetBytesFromTab,
   getActiveTab,
+  RestrictedPageError,
+  sendMessageToTab,
 } from "../lib/browser";
 import { connectDropbox, disconnectDropbox, getAuthState } from "../lib/dropbox-auth";
 import { getCurrentAccount, listFolders } from "../lib/dropbox-api";
@@ -28,9 +31,10 @@ import type {
   AssetTriggerKind,
   BackgroundMessage,
   ExtensionSettings,
-  PendingScanState,
   SaveRequest,
   SaveResult,
+  ScanPageAssetsResponse,
+  StartScanFlowResponse,
 } from "../lib/types";
 import { detectAssetType } from "../lib/utils/asset";
 import { isLikelyDirectAssetUrl } from "../lib/utils/url";
@@ -245,12 +249,17 @@ async function queueSaveFlow(
   await executeSaveRequest(request);
 }
 
+async function scanTab(tabId: number): Promise<AssetCandidate[]> {
+  await ensureContentScript(tabId);
+  const response = await sendMessageToTab<ScanPageAssetsResponse>(tabId, { type: "SCAN_PAGE_ASSETS" });
+  return response?.assets ?? [];
+}
+
 async function scanActiveTab(): Promise<AssetCandidate[]> {
   const tab = await getActiveTab();
   if (!tab?.id) return [];
   try {
-    const response = await chrome.tabs.sendMessage(tab.id, { type: "SCAN_PAGE_ASSETS" });
-    return response?.assets ?? [];
+    return await scanTab(tab.id);
   } catch {
     return [];
   }
@@ -275,22 +284,42 @@ async function enrichCandidate(candidate: AssetCandidate, tabId?: number): Promi
   }
 }
 
-async function startScanFlow(): Promise<PendingScanState | null> {
+async function startScanFlow(): Promise<StartScanFlowResponse> {
   const activeTab = await getActiveTab();
-  const assets = await scanActiveTab();
-  if (assets.length === 0) return null;
+  if (!activeTab?.id) {
+    return { ok: false, message: "Open a regular website tab, then try scanning again." };
+  }
+
+  let assets: AssetCandidate[];
+  try {
+    assets = await scanTab(activeTab.id);
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof RestrictedPageError
+          ? error.message
+          : "Could not scan this page. Reload the tab and try again.",
+    };
+  }
+  if (assets.length === 0) {
+    return {
+      ok: false,
+      message: "No supported images, videos, audio files, or linked files were found on this page.",
+    };
+  }
 
   const settings = await getSettings();
   const flow = createPendingScanState(
     assets,
-    activeTab?.id,
+    activeTab.id,
     settings.savePreferences.folderBehavior === "always_ask"
       ? null
       : settings.lastUsedFolderPath,
   );
   await setPendingSave(flow);
   await openSaveWindow();
-  return flow;
+  return { ok: true, flow };
 }
 
 async function initializeContextMenus() {
@@ -332,9 +361,9 @@ export default defineBackground(() => {
   chrome.contextMenus.onClicked.addListener((info, tab) => {
     void (async () => {
       if (info.menuItemId === MENU_IDS.scan) {
-        const flow = await startScanFlow();
-        if (!flow) {
-          await reportUnsupportedTarget("No supported assets were detected on this page.");
+        const response = await startScanFlow();
+        if (!response.ok) {
+          await reportUnsupportedTarget(response.message);
         }
         return;
       }
