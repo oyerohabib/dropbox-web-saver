@@ -3,6 +3,7 @@ import { FolderPicker } from "../../components/FolderPicker";
 import { Button, Spinner, StatusMessage, type StatusTone } from "../../components/ui";
 import { openFeedbackTab, openPreferencesTab, openSettingsTab, sendBackgroundMessage } from "../../lib/browser";
 import { deriveCandidateFilename } from "../../lib/utils/filename";
+import { formatFolderPath } from "../../lib/utils/folder-path";
 import { getDropboxWebUrl } from "../../lib/utils/url";
 import type {
   AssetCandidate,
@@ -34,6 +35,8 @@ export function SaveApp() {
   const [savedTo, setSavedTo] = useState<{ folderPath: string; filename: string } | null>(null);
   const [changingFolder, setChangingFolder] = useState(false);
   const [savePreferences, setSavePreferences] = useState<SavePreferences | null>(null);
+  const [defaultFolder, setDefaultFolder] = useState<string | null>(null);
+  const [defaultSaved, setDefaultSaved] = useState(false);
 
   async function load() {
     const [nextAuthState, nextSaveFlow, settings] = await Promise.all([
@@ -44,6 +47,7 @@ export function SaveApp() {
     setAuthState(nextAuthState);
     setSaveFlow(nextSaveFlow);
     setSavePreferences(settings.savePreferences);
+    setDefaultFolder(settings.lastUsedFolderPath);
     setSelectedPath(
       nextSaveFlow?.mode === "scan"
         ? nextSaveFlow.destinationPath || settings.lastUsedFolderPath || "/"
@@ -113,19 +117,24 @@ export function SaveApp() {
     }
   }
 
-  async function completeSave() {
-    if (!selectedPath) return;
+  async function saveDefaultFolder(path: string) {
+    setSaving(true);
+    setStatus(null);
     try {
-      if (!saveFlow) {
-        await sendBackgroundMessage<ExtensionSettings>({
-          type: "SET_LAST_USED_FOLDER",
-          path: selectedPath,
-        });
-        setStatus({ tone: "success", text: `Default Dropbox folder set to ${selectedPath}.` });
-        setChangingFolder(false);
-        return;
-      }
+      await sendBackgroundMessage<ExtensionSettings>({ type: "SET_LAST_USED_FOLDER", path });
+      setSelectedPath(path);
+      setDefaultFolder(path);
+      setDefaultSaved(true);
+    } catch (error) {
+      setStatus({ tone: "error", text: error instanceof Error ? error.message : "Could not save the default folder." });
+    } finally {
+      setSaving(false);
+    }
+  }
 
+  async function completeSave() {
+    if (!selectedPath || !saveFlow) return;
+    try {
       if (!reviewCandidate) {
         setStatus({ tone: "error", text: "No file is selected for saving." });
         return;
@@ -154,7 +163,7 @@ export function SaveApp() {
 
   if (!loaded) {
     return (
-      <div className="app-shell">
+      <div className="app-shell save-shell">
         <div className="empty-state row" style={{ justifyContent: "center", border: 0 }}>
           <Spinner size="lg" />
           <span>Loading…</span>
@@ -165,10 +174,10 @@ export function SaveApp() {
 
   if (savedTo) {
     return (
-      <div className="app-shell">
+      <div className="app-shell save-shell">
         <section className="panel stack" style={{ alignItems: "center", textAlign: "center", padding: 32 }}>
           <span className="badge success" style={{ fontSize: 20, padding: "8px 14px" }}>✓</span>
-          <div className="section-title">Saved to {savedTo.folderPath}</div>
+          <div className="section-title">Saved to {formatFolderPath(savedTo.folderPath)}</div>
           <div className="muted break-anywhere">{savedTo.filename}</div>
           <a href={getDropboxWebUrl(savedTo.folderPath)} rel="noopener noreferrer" target="_blank">
             Open in Dropbox
@@ -178,8 +187,32 @@ export function SaveApp() {
     );
   }
 
+  if (defaultSaved && defaultFolder) {
+    return (
+      <div className="app-shell save-shell">
+        <section className="panel stack" style={{ alignItems: "center", textAlign: "center", padding: 32 }}>
+          <span className="badge success" style={{ fontSize: 20, padding: "8px 14px" }}>✓</span>
+          <div className="section-title">Default folder set</div>
+          <span className="path-pill" title={defaultFolder}>{formatFolderPath(defaultFolder)}</span>
+          <div className="muted">
+            New saves go here. You can still pick a different folder while saving.
+          </div>
+          <div className="actions-wrap" style={{ justifyContent: "center" }}>
+            <Button onClick={() => window.close()}>Done</Button>
+            <Button onClick={() => setDefaultSaved(false)} variant="secondary">
+              Choose another folder
+            </Button>
+          </div>
+          <a href={getDropboxWebUrl(defaultFolder)} rel="noopener noreferrer" target="_blank">
+            Open in Dropbox
+          </a>
+        </section>
+      </div>
+    );
+  }
+
   return (
-    <div className="app-shell">
+    <div className="app-shell save-shell">
       <section className="hero">
         <div className="eyebrow">
           {saveFlow?.mode === "scan" ? "Pick a file from this page" : saveFlow ? "Review save" : "Default folder"}
@@ -189,9 +222,21 @@ export function SaveApp() {
             ? "Choose a file from this page to save to Dropbox."
             : saveFlow
               ? "Check the name and folder, then save."
-              : "Choose the default Dropbox folder for future saves."}
+              : "Where should your saves go?"}
         </h2>
-        {!saveFlow ? <p>Saves go here unless you pick another folder.</p> : null}
+        {!saveFlow ? (
+          <>
+            <p>Open a folder below, then set it as the default. You can still pick another folder while saving.</p>
+            <div className="row current-default">
+              <span className="muted">Current default</span>
+              {defaultFolder ? (
+                <span className="path-pill" title={defaultFolder}>{formatFolderPath(defaultFolder)}</span>
+              ) : (
+                <span className="badge neutral">Not set yet</span>
+              )}
+            </div>
+          </>
+        ) : null}
       </section>
 
       {status ? (
@@ -307,11 +352,13 @@ export function SaveApp() {
           <div className="row row-between">
             <div className="row" style={{ minWidth: 0 }}>
               <span className="muted">Folder</span>
-              <span className="path-pill" title={selectedPath || "/"}>{selectedPath || "/"}</span>
+              <span className="path-pill" title={selectedPath || "/"}>{formatFolderPath(selectedPath || "/")}</span>
             </div>
-            <Button onClick={() => setChangingFolder((current) => !current)} variant="ghost">
-              {changingFolder ? "Done" : "Change"}
-            </Button>
+            {!changingFolder ? (
+              <Button onClick={() => setChangingFolder(true)} variant="ghost">
+                Change
+              </Button>
+            ) : null}
           </div>
           <Button
             block
@@ -325,29 +372,22 @@ export function SaveApp() {
         </section>
       ) : null}
 
-      {(!saveFlow || changingFolder || !reviewCandidate) ? (
+      {authState?.status === "signed_in" && (!saveFlow || changingFolder || !reviewCandidate) ? (
         <FolderPicker
+          confirmLabel={saveFlow ? "Use this folder" : "Set as default folder"}
+          confirming={!saveFlow && saving}
+          defaultPath={defaultFolder}
           initialPath={selectedPath || "/"}
-          onSelect={(path) => {
+          onCancel={saveFlow && reviewCandidate ? () => setChangingFolder(false) : undefined}
+          onConfirm={(path) => {
+            if (!saveFlow) {
+              void saveDefaultFolder(path);
+              return;
+            }
             setSelectedPath(path);
             setChangingFolder(false);
           }}
-          selectedPath={selectedPath}
         />
-      ) : null}
-
-      {!saveFlow ? (
-        <section className="panel stack">
-          <div className="row row-between">
-            <div>
-              <div className="section-title">Remember folder</div>
-              <div className="muted break-anywhere">Selected: {selectedPath || "None"}</div>
-            </div>
-            <Button disabled={!selectedPath} loading={saving} onClick={() => void completeSave()}>
-              Remember Folder
-            </Button>
-          </div>
-        </section>
       ) : null}
 
       <footer className="page-footer">
