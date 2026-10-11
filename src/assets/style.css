@@ -67,6 +67,12 @@ a:hover,
   cursor: pointer;
 }
 
+.link-button:disabled {
+  color: var(--muted);
+  text-decoration: none;
+  cursor: default;
+}
+
 :focus-visible {
   outline: none;
   box-shadow: var(--focus);
@@ -918,13 +924,87 @@ a.secondary-button {
 
 .asset-row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px 12px;
+}
+
+.asset-row input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 .asset-row.selected {
   border-color: var(--accent);
   background: var(--accent-soft);
+}
+
+.asset-thumb {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  object-fit: cover;
+}
+
+.asset-thumb-icon {
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+}
+
+.asset-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.asset-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.asset-toolbar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.asset-toolbar-toggle input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.batch-failures {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.batch-failures li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
 }
 
 .recent-item {
