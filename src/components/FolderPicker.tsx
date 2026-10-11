@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FolderEntry } from "../lib/types";
 import { sendBackgroundMessage } from "../lib/browser";
+import { Button, Skeleton, StatusMessage } from "./ui";
 
 interface FolderPickerProps {
   initialPath: string;
@@ -68,55 +69,62 @@ export function FolderPicker({ initialPath, selectedPath, onSelect }: FolderPick
   return (
     <div className="panel">
       <div className="row row-between">
-        <div>
+        <div className="stack-sm" style={{ minWidth: 0 }}>
           <div className="eyebrow">Dropbox folder</div>
-          <div className="path-pill">{currentPath}</div>
+          <div className="path-pill" title={currentPath}>{currentPath}</div>
         </div>
-        <button
-          className="ghost-button"
-          disabled={currentPath === "/"}
+        <Button
+          disabled={currentPath === "/" || loading}
           onClick={() => void loadFolders(getParentPath(currentPath))}
-          type="button"
+          variant="ghost"
         >
-          Up
-        </button>
+          ↑ Up
+        </Button>
       </div>
 
       <div className="folder-actions">
-        <button className="primary-button" onClick={() => onSelect(currentPath)} type="button">
-          Use This Folder
-        </button>
-        {selectedPath === currentPath ? <span className="badge success">Selected</span> : null}
+        <Button block onClick={() => onSelect(currentPath)}>
+          {selectedPath === currentPath ? "✓ Using this folder" : "Use this folder"}
+        </Button>
       </div>
 
-      <div className="create-folder">
+      <form
+        className="create-folder"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void createFolder();
+        }}
+      >
         <input
+          aria-label="New folder name"
           className="text-input"
           onChange={(event) => setNewFolderName(event.target.value)}
-          placeholder="Create a new folder"
+          placeholder="New folder name"
           value={newFolderName}
         />
-        <button className="secondary-button" disabled={creating} onClick={() => void createFolder()} type="button">
-          {creating ? "Creating..." : "Create"}
-        </button>
-      </div>
+        <Button disabled={!newFolderName.trim()} loading={creating} type="submit" variant="secondary">
+          Create
+        </Button>
+      </form>
 
-      {error ? <div className="callout error">{error}</div> : null}
+      {error ? <div style={{ marginTop: 12 }}><StatusMessage tone="error">{error}</StatusMessage></div> : null}
 
       <div className="folder-list">
-        {loading ? <div className="muted">Loading folders...</div> : null}
-        {!loading && folders.length === 0 ? <div className="muted">No folders here yet.</div> : null}
-        {folders.map((folder) => (
-          <button
-            className="folder-row"
-            key={folder.id}
-            onClick={() => void loadFolders(folder.pathDisplay)}
-            type="button"
-          >
-            <span>{folder.name}</span>
-            <span className="muted">Open</span>
-          </button>
-        ))}
+        {loading ? <Skeleton rows={4} /> : null}
+        {!loading && folders.length === 0 ? <div className="empty-state">No subfolders here.</div> : null}
+        {!loading
+          ? folders.map((folder) => (
+              <button
+                className="folder-row"
+                key={folder.id}
+                onClick={() => void loadFolders(folder.pathDisplay)}
+                type="button"
+              >
+                <span className="truncate">📁 {folder.name}</span>
+                <span className="muted">›</span>
+              </button>
+            ))
+          : null}
       </div>
     </div>
   );
