@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
+import { CONTACT_EMAIL } from "../../lib/project";
 
 const LAST_UPDATED = "October 11, 2026";
-const CONTACT = "[add your contact email or website here]";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -138,7 +138,7 @@ export function PrivacyApp() {
 
       <Section title="Changes and contact">
         <p>
-          If this policy changes, the &quot;Last updated&quot; date above will change too. Questions: {CONTACT}.
+          If this policy changes, the &quot;Last updated&quot; date above will change too. Questions: {CONTACT_EMAIL}.
         </p>
         <p className="muted">
           Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc.
