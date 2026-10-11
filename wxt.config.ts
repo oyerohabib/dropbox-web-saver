@@ -19,6 +19,5 @@ export default defineConfig({
       default_title: "Web Saver for Dropbox",
       default_popup: "popup.html",
     },
-    options_page: "options.html",
   },
 });
