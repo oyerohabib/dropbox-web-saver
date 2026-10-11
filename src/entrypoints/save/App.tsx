@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { FolderPicker } from "../../components/FolderPicker";
+import { Button, Spinner, StatusMessage, type StatusTone } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
 import { deriveCandidateFilename } from "../../lib/utils/filename";
 import type {
@@ -23,7 +24,9 @@ export function SaveApp() {
   const [selectedPath, setSelectedPath] = useState<string | null>("/");
   const [selectedSourceUrl, setSelectedSourceUrl] = useState<string | null>(null);
   const [filenameDraft, setFilenameDraft] = useState("");
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ tone: StatusTone; text: string } | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [changingFolder, setChangingFolder] = useState(false);
   const [savePreferences, setSavePreferences] = useState<SavePreferences | null>(null);
@@ -76,7 +79,11 @@ export function SaveApp() {
   }
 
   useEffect(() => {
-    void load();
+    load()
+      .catch((error) => {
+        setStatus({ tone: "error", text: error instanceof Error ? error.message : "Could not load this save." });
+      })
+      .finally(() => setLoaded(true));
   }, []);
 
   const reviewCandidate = getReviewCandidate(saveFlow, selectedSourceUrl);
@@ -90,12 +97,15 @@ export function SaveApp() {
   }, [resolvedFilename, saveFlow?.mode, selectedSourceUrl]);
 
   async function connect() {
+    setConnecting(true);
     try {
       await sendBackgroundMessage<DropboxAuthState>({ type: "CONNECT_DROPBOX" });
-      setStatusMessage("Dropbox connected.");
+      setStatus({ tone: "success", text: "Dropbox connected." });
       await load();
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Dropbox connection failed.");
+      setStatus({ tone: "error", text: error instanceof Error ? error.message : "Dropbox connection failed." });
+    } finally {
+      setConnecting(false);
     }
   }
 
@@ -107,13 +117,13 @@ export function SaveApp() {
           type: "SET_LAST_USED_FOLDER",
           path: selectedPath,
         });
-        setStatusMessage(`Default Dropbox folder set to ${selectedPath}.`);
+        setStatus({ tone: "success", text: `Default Dropbox folder set to ${selectedPath}.` });
         setChangingFolder(false);
         return;
       }
 
       if (!reviewCandidate) {
-        setStatusMessage("No asset is selected for saving.");
+        setStatus({ tone: "error", text: "No file is selected for saving." });
         return;
       }
 
@@ -124,39 +134,47 @@ export function SaveApp() {
         candidate: saveFlow.mode === "scan" ? reviewCandidate : undefined,
         finalFilename: filenameDraft.trim() || resolvedFilename,
       });
-      setStatusMessage(result.message);
+      setStatus({ tone: result.ok ? "success" : "error", text: result.message });
       if (result.ok) {
         window.close();
       } else {
         await load();
       }
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "The save request failed.");
+      setStatus({ tone: "error", text: error instanceof Error ? error.message : "The save request failed." });
     } finally {
       setSaving(false);
     }
+  }
+
+  if (!loaded) {
+    return (
+      <div className="app-shell">
+        <div className="empty-state row" style={{ justifyContent: "center", border: 0 }}>
+          <Spinner size="lg" />
+          <span>Loading…</span>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="app-shell">
       <section className="hero">
         <div className="eyebrow">
-          {saveFlow?.mode === "scan" ? "Scan Flow" : saveFlow ? "Save Review" : "Folder Preference"}
+          {saveFlow?.mode === "scan" ? "Pick a file from this page" : saveFlow ? "Review save" : "Default folder"}
         </div>
         <h2>
           {saveFlow?.mode === "scan"
-            ? "Browse assets from this page, choose one, and save it to Dropbox."
+            ? "Choose a file from this page to save to Dropbox."
             : saveFlow
-              ? "Review the filename and folder before the asset is saved."
+              ? "Check the name and folder, then save."
               : "Choose the default Dropbox folder for future saves."}
         </h2>
-        <p>
-          {reviewCandidate?.sourceUrl
-            || "Open this window from the extension to review a save or choose a default folder."}
-        </p>
+        {!saveFlow ? <p>Saves go here unless you pick another folder.</p> : null}
       </section>
 
-      {statusMessage ? <div className="callout info">{statusMessage}</div> : null}
+      {status ? <StatusMessage tone={status.tone}>{status.text}</StatusMessage> : null}
 
       {authState?.status !== "signed_in" ? (
         <section className="panel stack">
@@ -167,21 +185,16 @@ export function SaveApp() {
               : "Authorize Dropbox to continue."}
           </div>
           <div className="actions-wrap">
-            <button
-              className="primary-button"
+            <Button
               disabled={authState?.status === "missing_app_key"}
+              loading={connecting}
               onClick={() => void connect()}
-              type="button"
             >
               Connect Dropbox
-            </button>
-            <button
-              className="secondary-button"
-              onClick={() => chrome.runtime.openOptionsPage()}
-              type="button"
-            >
+            </Button>
+            <Button onClick={() => chrome.runtime.openOptionsPage()} variant="secondary">
               Open Settings
-            </button>
+            </Button>
           </div>
         </section>
       ) : null}
@@ -190,28 +203,28 @@ export function SaveApp() {
         <section className="panel stack">
           <div className="row row-between">
             <div>
-              <div className="section-title">Detected Page Assets</div>
-              <div className="muted">
-                Choose the file you want to review and save.
-              </div>
+              <div className="section-title">Files on this page</div>
+              <div className="muted">Choose the file you want to save.</div>
             </div>
-            <div className="muted">{saveFlow.assets.length} found</div>
+            <span className="badge neutral">{saveFlow.assets.length} found</span>
           </div>
-          <div className="asset-list">
+          <div className="asset-list" style={{ marginTop: 0 }}>
             {saveFlow.assets.map((asset) => {
               const assetFilename = deriveCandidateFilename(asset);
+              const isSelected = selectedSourceUrl === asset.sourceUrl;
               return (
                 <button
-                  className="asset-row"
+                  aria-pressed={isSelected}
+                  className={`asset-row${isSelected ? " selected" : ""}`}
                   key={asset.sourceUrl}
                   onClick={() => setSelectedSourceUrl(asset.sourceUrl)}
                   type="button"
                 >
                   <div className="row row-between">
-                    <strong>{assetFilename}</strong>
-                    {selectedSourceUrl === asset.sourceUrl ? <span className="badge success">Selected</span> : null}
+                    <strong className="truncate">{assetFilename}</strong>
+                    {isSelected ? <span className="badge accent">Selected</span> : null}
                   </div>
-                  <span className="muted">{asset.sourceUrl}</span>
+                  <span className="muted truncate" title={asset.sourceUrl}>{asset.sourceUrl}</span>
                   <span className="muted">
                     {asset.detectedType}
                     {asset.requiresAuthenticatedFetch ? " • authenticated fetch" : ""}
@@ -226,44 +239,47 @@ export function SaveApp() {
       {reviewCandidate ? (
         <section className="panel stack">
           <div className="row row-between">
-            <div>
-              <div className="section-title">Ready To Save</div>
-              <div className="muted">{reviewCandidate.triggerKind === "linked_file" ? "Linked file" : "Media asset"}</div>
-            </div>
-            {resolvedFilename ? <span className="path-pill">{resolvedFilename}</span> : null}
+            <div className="section-title">Ready to save</div>
+            <span className="badge neutral">
+              {reviewCandidate.triggerKind === "linked_file" ? "Linked file" : "Media asset"}
+            </span>
           </div>
-          <div className="muted">{reviewCandidate.sourceUrl}</div>
-          {reviewCandidate.elementTextHint ? (
-            <div className="muted">Hint: {reviewCandidate.elementTextHint}</div>
-          ) : null}
           {shouldPromptForRename ? (
-            <label className="stack">
-              <span className="muted">Filename before upload</span>
+            <label className="field">
+              <span className="field-label">File name</span>
               <input
                 className="text-input"
                 onChange={(event) => setFilenameDraft(event.target.value)}
                 value={filenameDraft}
               />
             </label>
+          ) : resolvedFilename ? (
+            <div className="field">
+              <span className="field-label">File name</span>
+              <strong className="break-anywhere">{resolvedFilename}</strong>
+            </div>
           ) : null}
-          <div className="row row-between">
-            <div className="muted">Folder: {selectedPath || "/"}</div>
-            <button
-              className="ghost-button"
-              onClick={() => setChangingFolder((current) => !current)}
-              type="button"
-            >
-              {changingFolder ? "Hide Folder Picker" : "Change Folder"}
-            </button>
+          <div className="muted truncate" title={reviewCandidate.sourceUrl}>
+            From {reviewCandidate.sourceUrl}
           </div>
-          <button
-            className="primary-button"
-            disabled={!selectedPath || saving}
+          <div className="row row-between">
+            <div className="row" style={{ minWidth: 0 }}>
+              <span className="muted">Folder</span>
+              <span className="path-pill" title={selectedPath || "/"}>{selectedPath || "/"}</span>
+            </div>
+            <Button onClick={() => setChangingFolder((current) => !current)} variant="ghost">
+              {changingFolder ? "Done" : "Change"}
+            </Button>
+          </div>
+          <Button
+            block
+            disabled={!selectedPath}
+            large
+            loading={saving}
             onClick={() => void completeSave()}
-            type="button"
           >
-            {saving ? "Saving..." : "Save to Dropbox"}
-          </button>
+            {saving ? "Saving…" : "Save to Dropbox"}
+          </Button>
         </section>
       ) : null}
 
@@ -282,17 +298,12 @@ export function SaveApp() {
         <section className="panel stack">
           <div className="row row-between">
             <div>
-              <div className="section-title">Remember Folder</div>
-              <div className="muted">Selected folder: {selectedPath || "None"}</div>
+              <div className="section-title">Remember folder</div>
+              <div className="muted break-anywhere">Selected: {selectedPath || "None"}</div>
             </div>
-            <button
-              className="primary-button"
-              disabled={!selectedPath || saving}
-              onClick={() => void completeSave()}
-              type="button"
-            >
+            <Button disabled={!selectedPath} loading={saving} onClick={() => void completeSave()}>
               Remember Folder
-            </button>
+            </Button>
           </div>
         </section>
       ) : null}
