@@ -94,6 +94,10 @@ a:hover,
   gap: var(--space-4);
 }
 
+.app-shell.page.narrow {
+  max-width: 680px;
+}
+
 .stack {
   display: flex;
   flex-direction: column;
@@ -398,6 +402,21 @@ a:hover,
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
+}
+
+.text-area {
+  min-height: 140px;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.diagnostics-preview {
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-2) 28px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  font-size: 12px;
 }
 
 .text-input:focus,
