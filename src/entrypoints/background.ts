@@ -1,0 +1,466 @@
+import { defineBackground } from "wxt/utils/define-background";
+import { BADGE_RESET_DELAY_MS } from "../lib/constants";
+import {
+  describeAssetTargetInTab,
+  fetchAssetBytesFromTab,
+  getActiveTab,
+} from "../lib/browser";
+import { connectDropbox, disconnectDropbox, getAuthState } from "../lib/dropbox-auth";
+import { getCurrentAccount, listFolders } from "../lib/dropbox-api";
+import {
+  createFolderAndSelect,
+  createPendingSave,
+  createPendingScanState,
+  saveAsset,
+} from "../lib/save-orchestrator";
+import {
+  getPendingSave,
+  getRecentSaves,
+  getSettings,
+  setLastResult,
+  setPendingSave,
+  setTokens,
+  updateSettings,
+} from "../lib/storage";
+import type {
+  AssetCandidate,
+  AssetFetchPayload,
+  AssetTriggerKind,
+  BackgroundMessage,
+  ExtensionSettings,
+  PendingScanState,
+  SaveRequest,
+  SaveResult,
+} from "../lib/types";
+import { detectAssetType } from "../lib/utils/asset";
+import { isLikelyDirectAssetUrl } from "../lib/utils/url";
+
+const MENU_IDS = {
+  image: "save-image-to-dropbox",
+  video: "save-video-to-dropbox",
+  audio: "save-audio-to-dropbox",
+  link: "save-link-to-dropbox",
+  scan: "scan-page-assets-for-dropbox",
+} as const;
+
+function getTriggerKind(menuItemId?: string): AssetTriggerKind | null {
+  switch (menuItemId) {
+    case MENU_IDS.image:
+      return "image";
+    case MENU_IDS.video:
+      return "video";
+    case MENU_IDS.audio:
+      return "audio";
+    case MENU_IDS.link:
+      return "linked_file";
+    default:
+      return null;
+  }
+}
+
+function buildCandidateFromContext(
+  info: chrome.contextMenus.OnClickData,
+  triggerKind: AssetTriggerKind,
+): AssetCandidate | null {
+  const sourceUrl = info.srcUrl || info.linkUrl;
+  if (!sourceUrl) return null;
+
+  const pageUrl = info.pageUrl || sourceUrl;
+  const sourceOrigin = (() => {
+    try {
+      return new URL(sourceUrl).origin;
+    } catch {
+      return "";
+    }
+  })();
+  const pageOrigin = (() => {
+    try {
+      return new URL(pageUrl).origin;
+    } catch {
+      return "";
+    }
+  })();
+  const detectedType =
+    triggerKind === "image"
+      ? "image"
+      : triggerKind === "video"
+        ? "video"
+        : triggerKind === "audio"
+          ? "audio"
+          : detectAssetType(sourceUrl);
+
+  return {
+    sourceUrl,
+    pageUrl,
+    detectedType,
+    suggestedFilename: null,
+    requiresAuthenticatedFetch:
+      sourceUrl.startsWith("blob:") || sourceUrl.startsWith("data:") || sourceOrigin === pageOrigin,
+    referrer: pageUrl,
+    triggerKind,
+  };
+}
+
+async function openSaveWindow() {
+  await chrome.windows.create({
+    url: chrome.runtime.getURL("save.html"),
+    type: "popup",
+    width: 560,
+    height: 820,
+  });
+}
+
+async function setBadgeForResult(result: SaveResult) {
+  await chrome.action.setBadgeBackgroundColor({
+    color: result.ok ? "#0b7a55" : "#ad2d2d",
+  });
+  await chrome.action.setBadgeText({
+    text: result.ok ? "OK" : "ERR",
+  });
+
+  setTimeout(() => {
+    void chrome.action.setBadgeText({ text: "" });
+  }, BADGE_RESET_DELAY_MS);
+}
+
+async function reportUnsupportedTarget(message: string): Promise<SaveResult> {
+  const result: SaveResult = {
+    ok: false,
+    status: "unsupported",
+    errorCode: "UNSUPPORTED_TARGET",
+    message,
+  };
+  await setLastResult(result);
+  await setBadgeForResult(result);
+  return result;
+}
+
+async function fetchAssetBytes(candidate: AssetCandidate, tabId?: number): Promise<AssetFetchPayload> {
+  if (candidate.requiresAuthenticatedFetch && tabId) {
+    try {
+      return await fetchAssetBytesFromTab(tabId, candidate.sourceUrl, candidate.referrer);
+    } catch (error) {
+      return {
+        ok: false,
+        status: 0,
+        contentType: null,
+        error: error instanceof Error ? error.message : "Could not fetch bytes from the page.",
+      };
+    }
+  }
+
+  const response = await fetch(candidate.sourceUrl, {
+    credentials: candidate.requiresAuthenticatedFetch ? "include" : "omit",
+    referrer: candidate.referrer,
+  }).catch((error: Error) => {
+    throw new Error(error.message);
+  });
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      contentType: response.headers.get("content-type"),
+      finalUrl: response.url,
+      contentDispositionFilename: response.headers.get("content-disposition"),
+      error: `Source fetch failed (${response.status})`,
+    };
+  }
+  return {
+    ok: true,
+    status: response.status,
+    contentType: response.headers.get("content-type"),
+    finalUrl: response.url,
+    contentDispositionFilename: response.headers.get("content-disposition"),
+    arrayBuffer: await response.arrayBuffer(),
+  };
+}
+
+async function executeSaveRequest(request: SaveRequest, reason?: "auth_required" | "folder_required") {
+  const result = await saveAsset(request, { fetchAssetBytes });
+  if (result.status === "needs_auth") {
+    await setPendingSave(createPendingSave(request, "auth_required"));
+    await openSaveWindow();
+  } else if (result.status === "needs_folder") {
+    await setPendingSave(createPendingSave(request, reason || "folder_required"));
+    await openSaveWindow();
+  }
+  await setBadgeForResult(result);
+  return result;
+}
+
+async function queueSaveFlow(
+  request: SaveRequest,
+  settings: ExtensionSettings,
+  options?: { forceReview?: boolean; reason?: "manual_override" | "context_review" },
+) {
+  const { savePreferences } = settings;
+  const needsFolderSelection =
+    request.forceFolderPicker
+    || savePreferences.folderBehavior === "always_ask"
+    || !request.destinationPath;
+  const needsReview =
+    options?.forceReview
+    || savePreferences.saveMode === "reviewed"
+    || savePreferences.promptForRename
+    || needsFolderSelection;
+
+  if (needsReview) {
+    await setPendingSave(
+      createPendingSave(
+        {
+          ...request,
+          forceFolderPicker: needsFolderSelection,
+        },
+        options?.reason || "context_review",
+      ),
+    );
+    await openSaveWindow();
+    return;
+  }
+
+  await executeSaveRequest(request);
+}
+
+async function scanActiveTab(): Promise<AssetCandidate[]> {
+  const tab = await getActiveTab();
+  if (!tab?.id) return [];
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id, { type: "SCAN_PAGE_ASSETS" });
+    return response?.assets ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function enrichCandidate(candidate: AssetCandidate, tabId?: number): Promise<AssetCandidate> {
+  if (!tabId) return candidate;
+  try {
+    const description = await describeAssetTargetInTab(tabId, candidate.sourceUrl);
+    return {
+      ...candidate,
+      detectedType:
+        candidate.detectedType === "unknown" && description.hasDownloadAttribute
+          ? "link"
+          : candidate.detectedType,
+      preferredFilename: description.preferredFilename ?? candidate.preferredFilename,
+      elementTextHint: description.elementTextHint ?? candidate.elementTextHint,
+      mimeType: description.mimeType ?? candidate.mimeType,
+    };
+  } catch {
+    return candidate;
+  }
+}
+
+async function startScanFlow(): Promise<PendingScanState | null> {
+  const activeTab = await getActiveTab();
+  const assets = await scanActiveTab();
+  if (assets.length === 0) return null;
+
+  const settings = await getSettings();
+  const flow = createPendingScanState(
+    assets,
+    activeTab?.id,
+    settings.savePreferences.folderBehavior === "always_ask"
+      ? null
+      : settings.lastUsedFolderPath,
+  );
+  await setPendingSave(flow);
+  await openSaveWindow();
+  return flow;
+}
+
+async function initializeContextMenus() {
+  await chrome.contextMenus.removeAll();
+  chrome.contextMenus.create({
+    id: MENU_IDS.image,
+    title: "Save image to Dropbox",
+    contexts: ["image"],
+  });
+  chrome.contextMenus.create({
+    id: MENU_IDS.video,
+    title: "Save video to Dropbox",
+    contexts: ["video"],
+  });
+  chrome.contextMenus.create({
+    id: MENU_IDS.audio,
+    title: "Save audio to Dropbox",
+    contexts: ["audio"],
+  });
+  chrome.contextMenus.create({
+    id: MENU_IDS.link,
+    title: "Save linked file to Dropbox",
+    contexts: ["link"],
+  });
+  chrome.contextMenus.create({
+    id: MENU_IDS.scan,
+    title: "Scan page assets for Dropbox",
+    contexts: ["page", "selection"],
+  });
+}
+
+export default defineBackground(() => {
+  void initializeContextMenus();
+
+  chrome.runtime.onInstalled.addListener(() => {
+    void initializeContextMenus();
+  });
+
+  chrome.contextMenus.onClicked.addListener((info, tab) => {
+    void (async () => {
+      if (info.menuItemId === MENU_IDS.scan) {
+        const flow = await startScanFlow();
+        if (!flow) {
+          await reportUnsupportedTarget("No supported assets were detected on this page.");
+        }
+        return;
+      }
+
+      const triggerKind = getTriggerKind(String(info.menuItemId));
+      if (!triggerKind) return;
+
+      const candidate = buildCandidateFromContext(info, triggerKind);
+      if (!candidate) return;
+      const enrichedCandidate = await enrichCandidate(candidate, tab?.id);
+
+      if (
+        triggerKind === "linked_file" &&
+        enrichedCandidate.detectedType === "unknown" &&
+        !isLikelyDirectAssetUrl(enrichedCandidate.sourceUrl) &&
+        !enrichedCandidate.preferredFilename
+      ) {
+        await reportUnsupportedTarget(
+          "This link does not appear to point to a downloadable file or media asset.",
+        );
+        return;
+      }
+
+      const settings = await getSettings();
+      await queueSaveFlow({
+        candidate: enrichedCandidate,
+        destinationPath:
+          settings.savePreferences.folderBehavior === "always_ask"
+            ? null
+            : settings.lastUsedFolderPath,
+        tabId: tab?.id,
+      }, settings, { reason: "context_review" });
+    })();
+  });
+
+  chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
+    void (async () => {
+      switch (message.type) {
+        case "GET_AUTH_STATE":
+          sendResponse(await getAuthState());
+          return;
+        case "CONNECT_DROPBOX":
+          await connectDropbox();
+          await getCurrentAccount().catch(() => undefined);
+          sendResponse(await getAuthState());
+          return;
+        case "DISCONNECT_DROPBOX":
+          await disconnectDropbox();
+          sendResponse({ ok: true });
+          return;
+        case "GET_SETTINGS":
+          sendResponse(await getSettings());
+          return;
+        case "SAVE_SETTINGS": {
+          const currentSettings = await getSettings();
+          if (
+            Object.prototype.hasOwnProperty.call(message.settings, "appKey")
+            && currentSettings.appKey !== message.settings.appKey
+          ) {
+            await setTokens(null);
+          }
+          sendResponse(await updateSettings(message.settings));
+          return;
+        }
+        case "LIST_FOLDERS":
+          sendResponse(await listFolders(message.path));
+          return;
+        case "SET_LAST_USED_FOLDER":
+          sendResponse(await updateSettings({ lastUsedFolderPath: message.path }));
+          return;
+        case "CREATE_FOLDER":
+          sendResponse(await createFolderAndSelect(message.parentPath, message.name));
+          return;
+        case "GET_PENDING_SAVE":
+          sendResponse(await getPendingSave());
+          return;
+        case "CLEAR_PENDING_SAVE":
+          await setPendingSave(null);
+          sendResponse({ ok: true });
+          return;
+        case "SAVE_PENDING": {
+          const pending = await getPendingSave();
+          if (!pending) {
+            sendResponse({
+              ok: false,
+              status: "failed",
+              message: "No pending save request was found.",
+            } satisfies SaveResult);
+            return;
+          }
+
+          if (pending.mode === "scan") {
+            const selectedCandidate = message.candidate
+              ?? pending.assets.find((asset) => asset.sourceUrl === pending.selectedSourceUrl)
+              ?? pending.assets[0];
+            if (!selectedCandidate) {
+              sendResponse({
+                ok: false,
+                status: "unsupported",
+                errorCode: "UNSUPPORTED_TARGET",
+                message: "No supported asset was selected.",
+              } satisfies SaveResult);
+              return;
+            }
+            sendResponse(
+              await executeSaveRequest({
+                candidate: selectedCandidate,
+                destinationPath: message.destinationPath,
+                tabId: pending.tabId,
+                finalFilename: message.finalFilename ?? pending.selectedFilename,
+              }),
+            );
+            return;
+          }
+
+          sendResponse(
+            await executeSaveRequest({
+              ...pending.request,
+              destinationPath: message.destinationPath,
+              finalFilename: message.finalFilename ?? pending.request.finalFilename,
+            }),
+          );
+          return;
+        }
+        case "SAVE_CANDIDATE":
+          sendResponse(
+            await executeSaveRequest({
+              ...message.request,
+              tabId: message.request.tabId ?? (await getActiveTab())?.id,
+            }),
+          );
+          return;
+        case "GET_RECENT_SAVES":
+          sendResponse(await getRecentSaves());
+          return;
+        case "SCAN_ACTIVE_TAB_ASSETS":
+          sendResponse(await scanActiveTab());
+          return;
+        case "START_SCAN_FLOW":
+          sendResponse(await startScanFlow());
+          return;
+      }
+    })().catch((error) => {
+      sendResponse({
+        ok: false,
+        status: "failed",
+        message: error instanceof Error ? error.message : "Unexpected background error.",
+      } satisfies SaveResult);
+    });
+
+    return true;
+  });
+});
