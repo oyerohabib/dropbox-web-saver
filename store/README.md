@@ -69,7 +69,7 @@ YOUR FOLDERS, YOUR WAY
 • Recent saves are listed in the popup with links to their folders.
 
 SUPPORTED FILES
-Images (jpg, png, gif, webp, avif, heic, svg and more), video (mp4, webm, mov, mkv and more), audio (mp3, m4a, wav, ogg, flac and more), documents (pdf, docx, xlsx, pptx, txt, csv, epub and more), archives (zip, rar, 7z, tar, gz) and design files (psd, ai, fig, sketch). Images, videos and audio you right-click are saved whatever their format.
+Web Saver works with the common types of images, videos, audio, documents, archives and design files. Any image, video or audio you right-click is saved whatever its format. The full list is on the extension's settings page.
 
 PRIVATE BY DESIGN
 • You connect your own Dropbox app in about 3 minutes. A built-in guide walks you through each step with copy buttons.
@@ -212,4 +212,4 @@ Keep 2-step verification off on the test Dropbox account, so reviewers can sign 
 | Missing or mismatched privacy disclosures | The data usage answers match the privacy policy, which is public and also bundled in the extension. |
 | Reviewer couldn't test it | Step 7 gives reviewers a ready-made Dropbox account and app key. |
 | Misleading screenshots | The screenshots are rendered from the real extension pages. Only the sample web page and data are made up. |
-| Keyword stuffing | The description is written for people and doesn't repeat search keywords. |
+| Keyword stuffing | The description is written for people and doesn't repeat search keywords. Don't list file extensions (jpg, png, pdf…) in the description; version 0.1.0 was rejected for that ("Yellow Argon"). |
