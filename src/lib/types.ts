@@ -163,6 +163,7 @@ export type BackgroundMessage =
       finalFilename?: string | null;
     }
   | { type: "GET_RECENT_SAVES" }
+  | { type: "CLEAR_RECENT_SAVES" }
   | { type: "START_SCAN_FLOW" }
   | { type: "OPEN_FOLDER_SETTINGS" };
 

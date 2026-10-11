@@ -18,6 +18,7 @@ import {
   saveAsset,
 } from "../lib/save-orchestrator";
 import {
+  clearRecentSaves,
   getPendingSave,
   getRecentSaves,
   getSaveWindowId,
@@ -582,6 +583,10 @@ export default defineBackground(() => {
           return;
         case "GET_RECENT_SAVES":
           sendResponse(await getRecentSaves());
+          return;
+        case "CLEAR_RECENT_SAVES":
+          await clearRecentSaves();
+          sendResponse({ ok: true });
           return;
         case "START_SCAN_FLOW":
           sendResponse(await startScanFlow());

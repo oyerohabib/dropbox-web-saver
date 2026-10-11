@@ -80,6 +80,10 @@ export async function appendRecentSave(record: RecentSaveRecord): Promise<void> 
   await chrome.storage.local.set({ [STORAGE_KEYS.recentSaves]: next });
 }
 
+export async function clearRecentSaves(): Promise<void> {
+  await chrome.storage.local.remove(STORAGE_KEYS.recentSaves);
+}
+
 export async function getPendingSave(): Promise<PendingSaveState | null> {
   const result = (await chrome.storage.local.get(
     STORAGE_KEYS.pendingSave,
