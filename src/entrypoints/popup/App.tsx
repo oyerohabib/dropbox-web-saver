@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
 import { Button, StatusMessage } from "../../components/ui";
-import { openPreferencesTab, sendBackgroundMessage } from "../../lib/browser";
+import { openPreferencesTab, openSettingsTab, sendBackgroundMessage } from "../../lib/browser";
 import type {
   DropboxAuthState,
   RecentSaveRecord,
@@ -79,25 +79,25 @@ export function PopupApp() {
       </header>
 
       {authState && !signedIn ? (
-        <StatusMessage tone="info">
-          <div className="stack-sm">
-            <span>
+        <section className="panel stack">
+          <div>
+            <div className="section-title">
+              {authState.status === "missing_app_key" ? "Finish setting up" : "Reconnect Dropbox"}
+            </div>
+            <div className="muted">
               {authState.status === "missing_app_key"
-                ? "Add your Dropbox app key to get started."
-                : "Connect your Dropbox account to start saving."}
-            </span>
-            <button
-              className="link-button"
-              onClick={() => {
-                chrome.runtime.openOptionsPage();
-                window.close();
-              }}
-              type="button"
-            >
-              Open setup →
-            </button>
+                ? "Create your own Dropbox app and connect it. A guide walks you through it."
+                : "Your app key is saved. Connect your Dropbox account to start saving."}
+            </div>
           </div>
-        </StatusMessage>
+          <Button block large onClick={() => void openSettingsTab("setup").then(() => window.close())}>
+            {authState.status === "missing_app_key" ? "Set up Dropbox (5 steps, about 3 minutes)" : "Connect Dropbox"}
+          </Button>
+          <div className="muted">
+            🔒 Your key stays on this computer.{" "}
+            <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
+          </div>
+        </section>
       ) : null}
 
       <section className="panel stack">
@@ -134,9 +134,7 @@ export function PopupApp() {
         items={recentSaves}
         limit={POPUP_RECENT_LIMIT}
         onViewAll={() => {
-          void chrome.tabs
-            .create({ url: chrome.runtime.getURL("options.html#recent-saves") })
-            .then(() => window.close());
+          void openSettingsTab("recent-saves").then(() => window.close());
         }}
       />
     </div>
