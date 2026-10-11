@@ -140,6 +140,7 @@ export interface AssetFetchPayload {
   finalUrl?: string;
   contentDispositionFilename?: string | null;
   arrayBuffer?: ArrayBuffer;
+  base64?: string;
   error?: string;
 }
 

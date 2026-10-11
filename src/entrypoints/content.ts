@@ -5,7 +5,9 @@ import type {
   AssetFetchPayload,
   ContentScriptMessage,
 } from "../lib/types";
+import { MAX_TAB_TRANSFER_BYTES } from "../lib/constants";
 import { detectAssetType } from "../lib/utils/asset";
+import { arrayBufferToBase64 } from "../lib/utils/binary";
 
 function safeResolveUrl(url: string): string | null {
   try {
@@ -144,13 +146,23 @@ async function fetchAssetBytes(url: string, referrer?: string): Promise<AssetFet
         error: `Asset fetch failed (${response.status})`,
       };
     }
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > MAX_TAB_TRANSFER_BYTES) {
+      return {
+        ok: false,
+        status: response.status,
+        contentType: response.headers.get("content-type"),
+        finalUrl: response.url,
+        error: "This file is too large to transfer from the page (over 40 MB).",
+      };
+    }
     return {
       ok: true,
       status: response.status,
       contentType: response.headers.get("content-type"),
       finalUrl: response.url,
       contentDispositionFilename: response.headers.get("content-disposition"),
-      arrayBuffer: await response.arrayBuffer(),
+      base64: arrayBufferToBase64(buffer),
     };
   } catch (error) {
     return {

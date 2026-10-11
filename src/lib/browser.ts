@@ -6,6 +6,7 @@ import type {
   ContentScriptMessage,
   ScanPageAssetsResponse,
 } from "./types";
+import { base64ToArrayBuffer } from "./utils/binary";
 
 export async function sendBackgroundMessage<T>(message: BackgroundMessage): Promise<T> {
   return chrome.runtime.sendMessage(message) as Promise<T>;
@@ -37,11 +38,12 @@ export async function fetchAssetBytesFromTab(
   url: string,
   referrer?: string,
 ): Promise<AssetFetchPayload> {
-  return sendMessageToTab<AssetFetchPayload>(tabId, {
+  const { base64, ...payload } = await sendMessageToTab<AssetFetchPayload>(tabId, {
     type: "FETCH_ASSET_BYTES",
     url,
     referrer,
   });
+  return base64 ? { ...payload, arrayBuffer: base64ToArrayBuffer(base64) } : payload;
 }
 
 export async function describeAssetTargetInTab(

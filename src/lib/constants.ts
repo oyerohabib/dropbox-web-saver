@@ -13,6 +13,8 @@ export const DROPBOX_OAUTH_REVOKE = "https://api.dropboxapi.com/2/auth/token/rev
 
 export const SIMPLE_UPLOAD_LIMIT = 8 * 1024 * 1024;
 export const CHUNK_SIZE = 8 * 1024 * 1024;
+// Chrome caps extension messages at 64 MB and base64 inflates payloads by ~33%.
+export const MAX_TAB_TRANSFER_BYTES = 40 * 1024 * 1024;
 export const SAVE_URL_POLL_INTERVAL_MS = 1200;
 export const SAVE_URL_POLL_TIMEOUT_MS = 45_000;
 export const TOKEN_EXPIRY_SKEW_MS = 60_000;
