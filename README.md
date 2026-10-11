@@ -1,6 +1,11 @@
 # Web Saver for Dropbox
 
-Private Chromium extension (Chrome, Brave, Edge) for saving images, videos, audio, and linked files from any web page straight into Dropbox, without downloading them locally first.
+[![CI](https://github.com/oyerohabib/dropbox-web-saver/actions/workflows/ci.yml/badge.svg)](https://github.com/oyerohabib/dropbox-web-saver/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+Open-source Chromium extension (Chrome, Brave, Edge) for saving images, videos, audio, and linked files from any web page straight into Dropbox, without downloading them locally first. It has no server: you connect your own Dropbox app, and your key and tokens never leave your browser.
+
+Contributions and feedback are welcome. See [Contributing](#contributing) and [Feedback and bug reports](#feedback-and-bug-reports).
 
 > Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc. It uses its own icon rather than the Dropbox logo, in line with the [Dropbox brand guidelines](https://www.dropbox.com/developers/reference/branding-guide).
 
@@ -39,13 +44,28 @@ The extension ID is stable as long as you load it from the same folder. Loading 
 
 ## Privacy
 
-The app key, Dropbox tokens, preferences, and recent saves are stored only in the browser's extension storage. There is no Web Saver server, no analytics, and nothing is sent to the developer. The extension only contacts Dropbox and the website hosting the file you choose to save.
+The app key, Dropbox tokens, preferences, and recent saves are stored only in the browser's extension storage. There is no Web Saver server and no analytics, and nothing is sent to the developer except feedback you choose to send. The extension only contacts Dropbox and the website hosting the file you choose to save.
 
-The full policy ships inside the extension as `privacy.html`, linked from the settings page, popup, and review window. [PRIVACY.md](PRIVACY.md) has the same text for public hosting, which the Chrome Web Store requires. Keep `PRIVACY.md` and `src/entrypoints/privacy/App.tsx` in sync when either changes, and fill in the contact line in both before publishing.
+The full policy ships inside the extension as `privacy.html`, linked from the settings page, popup, and review window. [PRIVACY.md](PRIVACY.md) has the same text for public hosting, which the Chrome Web Store requires. Keep `PRIVACY.md` and `src/entrypoints/privacy/App.tsx` in sync when either changes.
+
+## Feedback and bug reports
+
+Every piece of feedback ends up as an issue in [GitHub Issues](https://github.com/oyerohabib/dropbox-web-saver/issues), so it can be tracked until it's resolved.
+
+- **From the extension**: click **Send feedback** or **Report a bug** in the popup footer or settings page, or **Report this problem** next to an error in the review window. The feedback page lets you pick bug, feature idea, or other feedback, then:
+  - **Continue on GitHub** opens a prefilled issue using the matching template. You review it and submit it yourself. It needs a free GitHub account.
+  - **Email instead** opens a prefilled email to the maintainer, who copies it into an issue.
+  - An optional toggle adds the extension version, browser, and whether Dropbox is connected. It never includes app keys, tokens, pages, or files.
+- **On GitHub**: [open an issue](https://github.com/oyerohabib/dropbox-web-saver/issues/new/choose) and choose the **Bug report**, **Feature idea**, or **General feedback** form.
+- **On uninstall**: the browser opens the feedback form so people who leave can say why.
+
+The issue form field ids in `.github/ISSUE_TEMPLATE/` must match the parameters built in `src/lib/project.ts`, which has tests for this.
 
 ## Build and install
 
 ```bash
+git clone https://github.com/oyerohabib/dropbox-web-saver.git
+cd dropbox-web-saver
 npm install
 npm run build
 ```
@@ -106,3 +126,17 @@ The toolbar icons are generated at build time from `src/assets/icon.svg` by `@wx
 - Assets fetched through the page's login session are limited to about 40 MB when transferred from the page. Larger files fall back to a direct fetch from the extension.
 - Streamed video (HLS/DASH, `blob:` sources from players such as YouTube) and CSS background images aren't detected.
 - The Dropbox app key and tokens are stored locally in the browser profile. There is no backend.
+
+## Contributing
+
+Pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, project structure, and the pull request checklist. CI runs the type check, tests, and build on every pull request. Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+Good first steps: browse [open issues](https://github.com/oyerohabib/dropbox-web-saver/issues), or pick something from **Known limitations** above.
+
+## Security
+
+Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md), not in public issues.
+
+## License
+
+[MIT](LICENSE) © 2026 oyerohabib
