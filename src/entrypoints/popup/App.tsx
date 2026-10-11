@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
 import { Button, StatusMessage } from "../../components/ui";
-import { openPreferencesTab, openSettingsTab, sendBackgroundMessage } from "../../lib/browser";
+import { openFeedbackTab, openPreferencesTab, openSettingsTab, sendBackgroundMessage } from "../../lib/browser";
 import type {
   DropboxAuthState,
   RecentSaveRecord,
@@ -137,6 +137,20 @@ export function PopupApp() {
           void openSettingsTab("recent-saves").then(() => window.close());
         }}
       />
+
+      <footer className="muted page-footer">
+        <button className="link-button" onClick={() => void openFeedbackTab().then(() => window.close())} type="button">
+          Send feedback
+        </button>
+        {" · "}
+        <button
+          className="link-button"
+          onClick={() => void openFeedbackTab({ kind: "bug" }).then(() => window.close())}
+          type="button"
+        >
+          Report a bug
+        </button>
+      </footer>
     </div>
   );
 }
