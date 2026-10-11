@@ -1,0 +1,260 @@
+:root {
+  color-scheme: light;
+  --bg: #f7f2ea;
+  --surface: rgba(255, 252, 247, 0.86);
+  --surface-strong: #fff9f0;
+  --ink: #1f1a17;
+  --muted: #6f6256;
+  --line: rgba(60, 41, 20, 0.12);
+  --accent: #0b7a55;
+  --accent-strong: #065e42;
+  --accent-soft: rgba(11, 122, 85, 0.12);
+  --warn: #9c3d10;
+  --danger: #ad2d2d;
+  --shadow: 0 16px 40px rgba(52, 37, 24, 0.12);
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 380px;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(11, 122, 85, 0.16), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(156, 61, 16, 0.16), transparent 38%),
+    linear-gradient(180deg, #fbf6ef 0%, #f0e6d8 100%);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100vh;
+  padding: 18px;
+}
+
+.hero {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(255, 250, 242, 0.95), rgba(255, 244, 229, 0.85));
+  box-shadow: var(--shadow);
+}
+
+.hero h1,
+.hero h2,
+.hero h3,
+.section-title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.hero p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.panel {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row-between {
+  justify-content: space-between;
+}
+
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.primary-button,
+.secondary-button,
+.ghost-button,
+.folder-row,
+.asset-row {
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.primary-button,
+.secondary-button,
+.ghost-button {
+  padding: 10px 14px;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: white;
+  box-shadow: 0 10px 24px rgba(11, 122, 85, 0.25);
+}
+
+.secondary-button {
+  background: rgba(22, 20, 19, 0.08);
+  color: var(--ink);
+}
+
+.ghost-button {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+.primary-button:hover,
+.secondary-button:hover,
+.ghost-button:hover,
+.folder-row:hover,
+.asset-row:hover {
+  transform: translateY(-1px);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.ghost-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+.text-input,
+.textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.callout {
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+}
+
+.callout.error {
+  background: rgba(173, 45, 45, 0.12);
+  color: var(--danger);
+}
+
+.callout.info {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.path-pill,
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.path-pill {
+  background: rgba(32, 28, 23, 0.08);
+}
+
+.badge.success {
+  background: rgba(11, 122, 85, 0.14);
+  color: var(--accent-strong);
+}
+
+.badge.error {
+  background: rgba(173, 45, 45, 0.12);
+  color: var(--danger);
+}
+
+.folder-actions,
+.create-folder {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.folder-list,
+.recent-list,
+.asset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.folder-row,
+.asset-row,
+.recent-item {
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.asset-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.actions-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  body {
+    min-width: 320px;
+  }
+
+  .folder-actions,
+  .create-folder,
+  .actions-wrap {
+    flex-direction: column;
+  }
+}
