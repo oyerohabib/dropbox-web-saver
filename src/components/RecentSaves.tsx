@@ -12,11 +12,11 @@ export function RecentSaves({ items }: RecentSavesProps) {
         <div className="muted">{items.length} item(s)</div>
       </div>
       <div className="recent-list">
-        {items.length === 0 ? <div className="muted">No saves yet.</div> : null}
+        {items.length === 0 ? <div className="empty-state">No saves yet.</div> : null}
         {items.map((item) => (
           <div className="recent-item" key={item.id}>
             <div className="row row-between">
-              <strong>{item.filename}</strong>
+              <strong className="truncate" title={item.filename}>{item.filename}</strong>
               <span className={`badge ${item.success ? "success" : "error"}`}>
                 {item.success ? "Saved" : "Failed"}
               </span>
