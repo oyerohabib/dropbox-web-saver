@@ -119,9 +119,9 @@ Web Saver saves files from web pages (images, videos, audio and linked files) in
 | `storage` | Stores the user's Dropbox app key, Dropbox sign-in tokens, save preferences, last used folder and a list of the last 20 saves in chrome.storage on the user's device. None of it is sent to the developer. |
 | `contextMenus` | Adds the right-click items "Save this image/video/audio to Dropbox", "Save the file this link opens to Dropbox" and "Find files on this page to save to Dropbox", plus "Save preferences" on the toolbar icon's menu. These are the main way users start a save. |
 | `identity` | Uses chrome.identity.launchWebAuthFlow to show Dropbox's own OAuth sign-in window (with PKCE) and receive the authorization code at the extension's chromiumapp.org redirect URI. |
-| `scripting` | Injects the extension's own bundled content script into the current tab when the user scans a page or saves a file from a tab that was already open before the extension was installed or updated. No remote code is ever injected. |
-| `activeTab` | Gives access to the tab the user is on when they click "Scan this page" in the toolbar popup, so the page can be scanned for files the user then chooses to save. |
-| Host permissions (`http://*/*`, `https://*/*`) | Users save files from whatever website they are on, so the extension must work on all http and https pages. It uses this access to: list the images, videos, audio and file links on the page when the user asks for a scan; download the chosen file with the page's own login session when the file isn't publicly reachable (for example a private image on a site the user is signed into) and upload it to Dropbox; check a link's file type before saving; and show a small "Saved to Dropbox" notice on the page. The content script does nothing until the user saves or scans, and never reads or sends page content on its own. |
+| `scripting` | The extension has no content script that runs on its own. Only after the user picks a "Save … to Dropbox" right-click item or clicks "Scan this page", it injects its own bundled script into that tab to list the files on the page, download the chosen file with the page's login session when it isn't publicly reachable, and show a small "Saved to Dropbox" notice. No remote code is ever injected. |
+| `activeTab` | Gives temporary access to the tab the user is on, only after they pick a "Save … to Dropbox" right-click item or click "Scan this page" in the toolbar popup. This is what lets the extension work on any site without asking for access to all websites. |
+| Optional host permissions (`http://*/*`, `https://*/*`) | Not granted at install. When Dropbox can't fetch a file by itself and the browser blocks the download from the file's site (for example images served from a separate CDN), the save window asks the user to allow that one site (for example `https://cdn.example.com/*`) with Chrome's permission prompt. The extension then downloads the file and uploads it to the user's Dropbox. The user can decline, and can remove access from the extension's details page. |
 
 **Remote code:** choose **No, I am not using remote code**. All JavaScript is bundled in the package.
 
@@ -177,6 +177,7 @@ App key: <app key>
 3. Step 5: click Connect Dropbox and sign in with the test account, then click Allow.
 4. Open any web page with images (for example https://unsplash.com), right-click an image and choose "Save this image to Dropbox". The first save opens a window to pick a folder; click Save to Dropbox. A "Saved to Dropbox" notice appears on the page.
 5. To save several files: right-click an empty part of the page and choose "Find files on this page to save to Dropbox", tick some files and click "Save N files".
+   If Dropbox can't fetch a file by itself, the save window asks to allow that file's site. Click "Allow access and save" and accept Chrome's prompt; access is limited to that one site.
 6. Saved files can be checked at https://www.dropbox.com/home after signing in with the test account.
 ```
 
@@ -186,7 +187,7 @@ Keep 2-step verification off on the test Dropbox account, so reviewers can sign 
 
 1. Check that every tab shows no warnings, then click **Submit for review**.
 2. Choose whether to publish automatically once approved. Deferred publishing lets you pick the moment yourself, but you must publish within 30 days of approval.
-3. Reviews usually take a few days. Access to all websites (`http://*/*`, `https://*/*`) triggers an extra in-depth review, so allow a week or more. The dashboard warns about this on upload; that's expected.
+3. Reviews usually take a few days. The extension doesn't request access to all websites at install (it uses `activeTab` and asks for one site at a time when needed), so it shouldn't trigger the "Broad Host Permissions" in-depth review.
 
 ## 9. After it's live
 
