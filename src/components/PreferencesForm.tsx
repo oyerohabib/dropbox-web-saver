@@ -7,11 +7,12 @@ import { Button, SegmentedControl, Skeleton, StatusMessage, Toggle } from "./ui"
 interface PreferencesFormProps {
   variant: "compact" | "full";
   onChooseFolder: () => void;
+  onReady?: () => void;
 }
 
 const SAVED_TICK_MS = 1_500;
 
-export function PreferencesForm({ variant, onChooseFolder }: PreferencesFormProps) {
+export function PreferencesForm({ variant, onChooseFolder, onReady }: PreferencesFormProps) {
   const [settings, setSettings] = useState<ExtensionSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -29,6 +30,11 @@ export function PreferencesForm({ variant, onChooseFolder }: PreferencesFormProp
     chrome.storage.onChanged.addListener(onStorageChanged);
     return () => chrome.storage.onChanged.removeListener(onStorageChanged);
   }, []);
+
+  const hasSettings = settings !== null;
+  useEffect(() => {
+    if (hasSettings) onReady?.();
+  }, [hasSettings]);
 
   useEffect(() => {
     if (savedAt === null) return;
