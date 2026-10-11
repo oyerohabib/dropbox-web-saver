@@ -228,6 +228,77 @@ describe("saveAsset", () => {
     expect(uploadFileToDropbox).not.toHaveBeenCalled();
   });
 
+  it("asks for the file's site when the browser blocks the download", async () => {
+    vi.mocked(getAuthState).mockResolvedValue({
+      status: "signed_in",
+      appKey: "app-key",
+      redirectUri: "https://example.test",
+    });
+    const findMissingSitePermission = vi.fn().mockResolvedValue("https://app.example.com/*");
+
+    const result = await saveAsset(
+      {
+        candidate: {
+          sourceUrl: "https://app.example.com/private.png",
+          pageUrl: "https://app.example.com/work",
+          detectedType: "image",
+          suggestedFilename: "private.png",
+          requiresAuthenticatedFetch: true,
+        },
+        destinationPath: "/Designs",
+        tabId: 12,
+      },
+      {
+        fetchAssetBytes: vi.fn().mockResolvedValue({ ok: false, status: 0 }),
+        findMissingSitePermission,
+        now: () => 9,
+      },
+    );
+
+    expect(findMissingSitePermission).toHaveBeenCalledWith("https://app.example.com/private.png");
+    expect(result.status).toBe("needs_permission");
+    expect(result.errorCode).toBe("SITE_PERMISSION_REQUIRED");
+    expect(result.permissionOrigin).toBe("https://app.example.com/*");
+    expect(uploadFileToDropbox).not.toHaveBeenCalled();
+  });
+
+  it("reports a normal fetch failure when the site is already allowed", async () => {
+    vi.mocked(getAuthState).mockResolvedValue({
+      status: "signed_in",
+      appKey: "app-key",
+      redirectUri: "https://example.test",
+    });
+    const findMissingSitePermission = vi.fn().mockResolvedValue(null);
+
+    for (const payload of [
+      { ok: false, status: 0 },
+      { ok: false, status: 403 },
+    ]) {
+      const result = await saveAsset(
+        {
+          candidate: {
+            sourceUrl: "https://app.example.com/private.png",
+            pageUrl: "https://app.example.com/work",
+            detectedType: "image",
+            suggestedFilename: "private.png",
+            requiresAuthenticatedFetch: true,
+          },
+          destinationPath: "/Designs",
+          tabId: 12,
+        },
+        {
+          fetchAssetBytes: vi.fn().mockResolvedValue(payload),
+          findMissingSitePermission,
+          now: () => 10,
+        },
+      );
+
+      expect(result.status).not.toBe("needs_permission");
+      expect(result.errorCode).toBe("ASSET_FETCH_FAILED");
+    }
+    expect(findMissingSitePermission).toHaveBeenCalledTimes(1);
+  });
+
   it("prefers a user-edited final filename when provided", async () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
