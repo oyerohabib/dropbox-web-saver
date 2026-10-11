@@ -149,6 +149,8 @@ npm run build      # production build into .output/chrome-mv3
 
 The toolbar icons are generated at build time from `src/assets/icon.svg` by `@wxt-dev/auto-icons`.
 
+[store/README.md](store/README.md) covers publishing to the Chrome Web Store: the listing text, privacy answers, reviewer test instructions, and screenshots. `./store/capture.sh` regenerates the screenshots from the real extension pages.
+
 ## Known limitations
 
 - Chromium browsers only.
