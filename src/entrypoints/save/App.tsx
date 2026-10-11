@@ -15,6 +15,7 @@ import type {
 } from "../../lib/types";
 
 const SUCCESS_CLOSE_DELAY_MS = 1_200;
+const KEPT_REVIEWING_CLOSE_DELAY_MS = 1_800;
 
 function getReviewCandidate(flow: PendingSaveState | null, selectedSourceUrl: string | null): AssetCandidate | null {
   if (!flow) return null;
@@ -32,7 +33,11 @@ export function SaveApp() {
   const [loaded, setLoaded] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [savedTo, setSavedTo] = useState<{ folderPath: string; filename: string } | null>(null);
+  const [savedTo, setSavedTo] = useState<{ folderPath: string; filename: string; switchedToInstant: boolean } | null>(
+    null,
+  );
+  const [keptReviewing, setKeptReviewing] = useState(false);
+  const [keepingReview, setKeepingReview] = useState(false);
   const [changingFolder, setChangingFolder] = useState(false);
   const [savePreferences, setSavePreferences] = useState<SavePreferences | null>(null);
   const [defaultFolder, setDefaultFolder] = useState<string | null>(null);
@@ -148,8 +153,11 @@ export function SaveApp() {
         finalFilename: filenameDraft.trim() || resolvedFilename,
       });
       if (result.ok) {
-        setSavedTo({ folderPath: selectedPath, filename: result.filename ?? filenameDraft });
-        setTimeout(() => window.close(), SUCCESS_CLOSE_DELAY_MS);
+        const switchedToInstant = Boolean(result.switchedToInstant);
+        setSavedTo({ folderPath: selectedPath, filename: result.filename ?? filenameDraft, switchedToInstant });
+        if (!switchedToInstant) {
+          setTimeout(() => window.close(), SUCCESS_CLOSE_DELAY_MS);
+        }
       } else {
         setStatus({ tone: "error", text: result.message });
         await load();
@@ -158,6 +166,22 @@ export function SaveApp() {
       setStatus({ tone: "error", text: error instanceof Error ? error.message : "The save request failed." });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function keepReviewing() {
+    setKeepingReview(true);
+    try {
+      await sendBackgroundMessage<ExtensionSettings>({
+        type: "SAVE_SETTINGS",
+        settings: { savePreferences: { saveMode: "reviewed" } },
+      });
+      setKeptReviewing(true);
+      setTimeout(() => window.close(), KEPT_REVIEWING_CLOSE_DELAY_MS);
+    } catch {
+      await openPreferencesTab();
+    } finally {
+      setKeepingReview(false);
     }
   }
 
@@ -182,6 +206,26 @@ export function SaveApp() {
           <a href={getDropboxWebUrl(savedTo.folderPath)} rel="noopener noreferrer" target="_blank">
             Open in Dropbox
           </a>
+          {savedTo.switchedToInstant ? (
+            <div className="stack" style={{ width: "100%", textAlign: "left" }}>
+              {keptReviewing ? (
+                <StatusMessage tone="success">Got it. The review window will keep opening.</StatusMessage>
+              ) : (
+                <>
+                  <StatusMessage tone="info">
+                    From now on, saves go straight to <strong>{formatFolderPath(savedTo.folderPath)}</strong> without
+                    this window. You&apos;ll see a notice on the page when each one finishes.
+                  </StatusMessage>
+                  <div className="actions-wrap" style={{ justifyContent: "center" }}>
+                    <Button onClick={() => window.close()}>Done</Button>
+                    <Button loading={keepingReview} onClick={() => void keepReviewing()} variant="secondary">
+                      Keep reviewing each save
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : null}
         </section>
       </div>
     );
