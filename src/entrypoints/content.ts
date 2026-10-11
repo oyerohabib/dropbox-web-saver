@@ -7,9 +7,11 @@ import type {
   ContentScriptMessage,
 } from "../lib/types";
 import { MAX_TAB_TRANSFER_BYTES } from "../lib/constants";
-import { detectAssetType } from "../lib/utils/asset";
+import { detectAssetType, rankScannedAssets } from "../lib/utils/asset";
 import { arrayBufferToBase64 } from "../lib/utils/binary";
 import { showSaveToast } from "../lib/save-toast";
+
+const MAX_SCANNED_ASSETS = 60;
 
 function safeResolveUrl(url: string): string | null {
   try {
@@ -111,18 +113,31 @@ function describeAssetTarget(url: string): AssetDescriptionResponse {
   };
 }
 
+function getElementSize(element: Element): { width?: number; height?: number } {
+  if (element instanceof HTMLImageElement) {
+    const width = element.naturalWidth || element.width;
+    const height = element.naturalHeight || element.height;
+    return width && height ? { width, height } : {};
+  }
+  const video = element instanceof HTMLSourceElement ? element.closest("video") : element;
+  if (video instanceof HTMLVideoElement && video.videoWidth && video.videoHeight) {
+    return { width: video.videoWidth, height: video.videoHeight };
+  }
+  return {};
+}
+
 function scanPageAssets(): AssetCandidate[] {
   const candidates = new Map<string, AssetCandidate>();
 
   document.querySelectorAll("img").forEach((element) => {
     if (isTinyImage(element)) return;
     const asset = normalizeAsset(getMediaUrl(element), element, "image");
-    if (asset) candidates.set(asset.sourceUrl, asset);
+    if (asset) candidates.set(asset.sourceUrl, { ...asset, ...getElementSize(element) });
   });
 
   document.querySelectorAll("video, video source[src]").forEach((element) => {
     const asset = normalizeAsset(getMediaUrl(element), element, "video");
-    if (asset) candidates.set(asset.sourceUrl, asset);
+    if (asset) candidates.set(asset.sourceUrl, { ...asset, ...getElementSize(element) });
   });
 
   document.querySelectorAll("audio, audio source[src]").forEach((element) => {
@@ -137,7 +152,7 @@ function scanPageAssets(): AssetCandidate[] {
     }
   });
 
-  return Array.from(candidates.values()).slice(0, 30);
+  return rankScannedAssets(Array.from(candidates.values())).slice(0, MAX_SCANNED_ASSETS);
 }
 
 async function fetchAssetBytes(url: string, referrer?: string): Promise<AssetFetchPayload> {
