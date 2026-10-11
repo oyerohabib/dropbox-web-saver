@@ -6,6 +6,7 @@ import type {
   AssetFetchPayload,
   PendingScanState,
   PendingSaveState,
+  PendingSingleSaveState,
   SaveRequest,
   SaveResult,
 } from "./types";
@@ -22,7 +23,7 @@ import {
 } from "./utils/filename";
 import { SavePipelineError } from "./utils/errors";
 import { canUseUrlImport } from "./utils/asset";
-import { getDomain } from "./utils/url";
+import { getDomain, getPatternHost } from "./utils/url";
 
 function isAuthError(error: unknown): error is SavePipelineError {
   return (
@@ -34,12 +35,15 @@ function isAuthError(error: unknown): error is SavePipelineError {
 export interface SaveDependencies {
   fetchAssetBytes: (candidate: AssetCandidate, tabId?: number) => Promise<AssetFetchPayload>;
   probeAssetMetadata?: (candidate: AssetCandidate) => Promise<AssetProbeResult | null>;
+  /** Returns the origin pattern the user hasn't allowed yet for this URL, or null if access isn't the problem. */
+  findMissingSitePermission?: (url: string) => Promise<string | null>;
   now?: () => number;
 }
 
 export function createPendingSave(
   request: SaveRequest,
-  reason: "auth_required" | "folder_required" | "manual_override" | "context_review",
+  reason: PendingSingleSaveState["reason"],
+  permissionOrigin?: string,
 ): PendingSaveState {
   const resolvedFilename = deriveCandidateFilename(request.candidate, request.finalFilename);
   return {
@@ -47,6 +51,7 @@ export function createPendingSave(
     request,
     resolvedFilename,
     reason,
+    permissionOrigin,
     createdAt: Date.now(),
   };
 }
@@ -146,6 +151,23 @@ export async function saveAsset(
         || !(assetPayload.arrayBuffer instanceof ArrayBuffer)
         || assetPayload.arrayBuffer.byteLength === 0
       ) {
+        // Without access to the file's site the browser blocks the download outright (status 0).
+        const missingPermission =
+          !assetPayload.ok && assetPayload.status === 0
+            ? await dependencies.findMissingSitePermission?.(candidate.sourceUrl)
+            : null;
+        if (missingPermission) {
+          const result: SaveResult = {
+            ok: false,
+            status: "needs_permission",
+            errorCode: "SITE_PERMISSION_REQUIRED",
+            filename,
+            permissionOrigin: missingPermission,
+            message: `Allow Web Saver to download files from ${getPatternHost(missingPermission)} to save this file.`,
+          };
+          await setLastResult(result);
+          return result;
+        }
         throw new SavePipelineError(
           assetPayload.error || "Could not fetch the source asset from the page.",
           "ASSET_FETCH_FAILED",

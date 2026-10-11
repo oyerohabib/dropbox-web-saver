@@ -47,7 +47,7 @@ import { applyProbeResult, probeAssetMetadata } from "../lib/asset-probe";
 import { detectAssetType } from "../lib/utils/asset";
 import { deriveCandidateFilename, hasExtension } from "../lib/utils/filename";
 import { markUserSaveModeChoice, shouldAutoSwitchToInstant } from "../lib/utils/save-mode";
-import { getDropboxWebUrl, isLikelyDirectAssetUrl } from "../lib/utils/url";
+import { getDropboxWebUrl, getOriginPattern, isLikelyDirectAssetUrl } from "../lib/utils/url";
 
 const MENU_IDS = {
   image: "save-image-to-dropbox",
@@ -175,7 +175,7 @@ function toastForResult(result: SaveResult, request: SaveRequest): SaveToastStat
       dropboxUrl: getDropboxWebUrl(folderPath),
     };
   }
-  if (result.status === "needs_auth" || result.status === "needs_folder") {
+  if (result.status === "needs_auth" || result.status === "needs_folder" || result.status === "needs_permission") {
     return { state: "hidden" };
   }
   return { state: "error", filename: result.filename, folderPath, message: result.message };
@@ -258,6 +258,12 @@ async function fetchAssetBytes(candidate: AssetCandidate, tabId?: number): Promi
   return fallback.ok ? fallback : { ...fallback, error: tabError || fallback.error };
 }
 
+async function findMissingSitePermission(url: string): Promise<string | null> {
+  const origin = getOriginPattern(url);
+  if (!origin) return null;
+  return (await chrome.permissions.contains({ origins: [origin] })) ? null : origin;
+}
+
 async function executeSaveRequest(
   request: SaveRequest,
   options: { fromSaveWindow?: boolean } = {},
@@ -273,15 +279,22 @@ async function executeSaveRequest(
     });
   }
 
-  const result = await saveAsset(request, { fetchAssetBytes, probeAssetMetadata });
+  const result = await saveAsset(request, { fetchAssetBytes, probeAssetMetadata, findMissingSitePermission });
   if (willUpload) {
     await showSaveStatusInTab(request.tabId, toastForResult(result, request));
   }
   // Saves started from the save window keep its existing pending flow; reopening would close that window.
-  if (!options.fromSaveWindow && (result.status === "needs_auth" || result.status === "needs_folder")) {
-    await setPendingSave(
-      createPendingSave(request, result.status === "needs_auth" ? "auth_required" : "folder_required"),
-    );
+  if (
+    !options.fromSaveWindow
+    && (result.status === "needs_auth" || result.status === "needs_folder" || result.status === "needs_permission")
+  ) {
+    const reason =
+      result.status === "needs_auth"
+        ? "auth_required"
+        : result.status === "needs_folder"
+          ? "folder_required"
+          : "permission_required";
+    await setPendingSave(createPendingSave(request, reason, result.permissionOrigin));
     await openSaveWindow();
   }
   await setBadgeForResult(result);

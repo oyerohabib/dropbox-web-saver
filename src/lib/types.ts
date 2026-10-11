@@ -44,6 +44,7 @@ export interface SaveResult {
     | "success"
     | "needs_auth"
     | "needs_folder"
+    | "needs_permission"
     | "unsupported"
     | "failed";
   method?: "url_import" | "direct_upload";
@@ -52,6 +53,8 @@ export interface SaveResult {
   errorCode?: SaveErrorCode;
   message: string;
   switchedToInstant?: boolean;
+  /** Origin pattern (for example `https://cdn.example.com/*`) the user must allow before retrying. */
+  permissionOrigin?: string;
 }
 
 export type SaveErrorCode =
@@ -64,6 +67,7 @@ export type SaveErrorCode =
   | "URL_IMPORT_FAILED"
   | "ASSET_FETCH_FAILED"
   | "UPLOAD_FAILED"
+  | "SITE_PERMISSION_REQUIRED"
   | "UNKNOWN";
 
 export interface DropboxTokens {
@@ -130,7 +134,8 @@ export interface PendingSingleSaveState {
   request: SaveRequest;
   resolvedFilename: string;
   createdAt: number;
-  reason: "auth_required" | "folder_required" | "manual_override" | "context_review";
+  reason: "auth_required" | "folder_required" | "permission_required" | "manual_override" | "context_review";
+  permissionOrigin?: string;
 }
 
 export interface PendingScanState {
