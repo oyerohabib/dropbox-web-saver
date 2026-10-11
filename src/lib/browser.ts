@@ -52,6 +52,11 @@ export class RestrictedPageError extends Error {
   }
 }
 
+/** Must be called from a click handler: Chrome only shows the permission prompt in response to a user gesture. */
+export function requestSitePermissions(origins: string[]): Promise<boolean> {
+  return chrome.permissions.request({ origins });
+}
+
 export async function ensureContentScript(tabId: number): Promise<void> {
   try {
     const response = await sendMessageToTab<{ ok?: boolean } | undefined>(tabId, { type: "PING" });

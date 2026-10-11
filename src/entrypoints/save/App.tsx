@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
 import { FolderPicker } from "../../components/FolderPicker";
 import { Button, Spinner, StatusMessage, type StatusTone } from "../../components/ui";
-import { openFeedbackTab, openPreferencesTab, openSettingsTab, sendBackgroundMessage } from "../../lib/browser";
+import {
+  openFeedbackTab,
+  openPreferencesTab,
+  openSettingsTab,
+  requestSitePermissions,
+  sendBackgroundMessage,
+} from "../../lib/browser";
 import { isSmallAsset } from "../../lib/utils/asset";
 import { summarizeBatch, type BatchItemResult, type BatchSummary } from "../../lib/utils/batch";
 import { deriveCandidateFilename } from "../../lib/utils/filename";
 import { formatFolderPath } from "../../lib/utils/folder-path";
-import { getDomain, getDropboxWebUrl } from "../../lib/utils/url";
+import { getDomain, getDropboxWebUrl, getPatternHost } from "../../lib/utils/url";
 import type {
   AssetCandidate,
   DropboxAuthState,
@@ -72,6 +78,7 @@ export function SaveApp() {
   const [showSmallImages, setShowSmallImages] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
   const [batchResult, setBatchResult] = useState<(BatchSummary & { folderPath: string }) | null>(null);
+  const [permissionOrigins, setPermissionOrigins] = useState<string[]>([]);
   const [filenameDraft, setFilenameDraft] = useState("");
   const [status, setStatus] = useState<{ tone: StatusTone; text: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -95,6 +102,9 @@ export function SaveApp() {
     ]);
     setAuthState(nextAuthState);
     setSaveFlow(nextSaveFlow);
+    setPermissionOrigins(
+      nextSaveFlow?.mode === "single" && nextSaveFlow.permissionOrigin ? [nextSaveFlow.permissionOrigin] : [],
+    );
     setSavePreferences(settings.savePreferences);
     setDefaultFolder(settings.lastUsedFolderPath);
     setSelectedPath(
@@ -210,6 +220,8 @@ export function SaveApp() {
         if (!switchedToInstant) {
           setTimeout(() => window.close(), SUCCESS_CLOSE_DELAY_MS);
         }
+      } else if (result.status === "needs_permission" && result.permissionOrigin) {
+        setPermissionOrigins([result.permissionOrigin]);
       } else {
         setStatus({ tone: "error", text: result.message });
         await load();
@@ -219,6 +231,24 @@ export function SaveApp() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function allowAndSave() {
+    setStatus(null);
+    if (!(await requestSitePermissions(permissionOrigins))) {
+      setStatus({ tone: "warning", text: "This file can't be saved without access to its site." });
+      return;
+    }
+    setPermissionOrigins([]);
+    await completeSave();
+  }
+
+  async function allowAndRetryBatch(summary: BatchSummary) {
+    if (!(await requestSitePermissions(summary.permissionOrigins))) return;
+    await saveBatch(
+      summary.failures.map((failure) => failure.asset),
+      summary,
+    );
   }
 
   async function saveBatch(assets: AssetCandidate[], previous?: BatchSummary) {
@@ -259,6 +289,7 @@ export function SaveApp() {
           savedCount: previous.savedCount + summary.savedCount,
           failures: summary.failures,
           switchedToInstant: previous.switchedToInstant || summary.switchedToInstant,
+          permissionOrigins: summary.permissionOrigins,
         }
       : summary;
     setBatchResult({ ...merged, folderPath });
@@ -367,13 +398,28 @@ export function SaveApp() {
                   </li>
                 ))}
               </ul>
+              {batchResult.permissionOrigins.length ? (
+                <StatusMessage tone="info">
+                  Some files are on sites Web Saver doesn&apos;t have access to yet:{" "}
+                  <strong>{batchResult.permissionOrigins.map(getPatternHost).join(", ")}</strong>. Allow access to
+                  download them from your browser.
+                </StatusMessage>
+              ) : null}
               {saving ? <div className="muted">Keep this window open until saving finishes.</div> : null}
               <div className="actions-wrap" style={{ justifyContent: "center" }}>
                 <Button
                   loading={saving}
-                  onClick={() => void saveBatch(batchResult.failures.map((failure) => failure.asset), batchResult)}
+                  onClick={() =>
+                    void (batchResult.permissionOrigins.length
+                      ? allowAndRetryBatch(batchResult)
+                      : saveBatch(batchResult.failures.map((failure) => failure.asset), batchResult))
+                  }
                 >
-                  {batchProgress ? `Saving ${batchProgress.current} of ${batchProgress.total}…` : "Retry failed"}
+                  {batchProgress
+                    ? `Saving ${batchProgress.current} of ${batchProgress.total}…`
+                    : batchResult.permissionOrigins.length
+                      ? "Allow access and retry"
+                      : "Retry failed"}
                 </Button>
                 <Button disabled={saving} onClick={() => window.close()} variant="secondary">
                   Done
@@ -631,14 +677,21 @@ export function SaveApp() {
             From {reviewCandidate.sourceUrl}
           </div>
           {folderRow}
+          {permissionOrigins.length ? (
+            <StatusMessage tone="info">
+              Dropbox couldn&apos;t fetch this file by itself, so Web Saver needs to download it from your browser.
+              Allow access to <strong>{permissionOrigins.map(getPatternHost).join(", ")}</strong> to continue.
+              Chrome remembers your choice for that site.
+            </StatusMessage>
+          ) : null}
           <Button
             block
             disabled={!selectedPath}
             large
             loading={saving}
-            onClick={() => void completeSave()}
+            onClick={() => void (permissionOrigins.length ? allowAndSave() : completeSave())}
           >
-            {saving ? "Saving…" : "Save to Dropbox"}
+            {saving ? "Saving…" : permissionOrigins.length ? "Allow access and save" : "Save to Dropbox"}
           </Button>
         </section>
       ) : null}
