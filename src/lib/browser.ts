@@ -5,6 +5,7 @@ import type {
   BackgroundMessage,
   ContentScriptMessage,
 } from "./types";
+import type { FeedbackKind } from "./project";
 import { base64ToArrayBuffer } from "./utils/binary";
 
 const CONTENT_SCRIPT_FILE = "content-scripts/content.js";
@@ -35,6 +36,14 @@ export function openSettingsTab(section: "setup" | "preferences" | "recent-saves
 
 export function openPreferencesTab() {
   return openSettingsTab("preferences");
+}
+
+export function openFeedbackTab(prefill: { kind?: FeedbackKind; title?: string; message?: string } = {}) {
+  const params = new URLSearchParams(
+    Object.entries(prefill).filter((entry): entry is [string, string] => Boolean(entry[1])),
+  );
+  const query = params.toString();
+  return chrome.tabs.create({ url: chrome.runtime.getURL(`feedback.html${query ? `?${query}` : ""}`) });
 }
 
 export class RestrictedPageError extends Error {
