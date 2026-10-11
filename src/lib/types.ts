@@ -26,6 +26,8 @@ export interface AssetCandidate {
   referrer?: string;
   mimeType?: string | null;
   triggerKind?: AssetTriggerKind;
+  width?: number;
+  height?: number;
 }
 
 export interface SaveRequest {
