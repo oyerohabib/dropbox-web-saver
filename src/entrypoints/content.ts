@@ -3,6 +3,7 @@ import type {
   AssetCandidate,
   AssetDescriptionResponse,
   AssetFetchPayload,
+  AssetType,
   ContentScriptMessage,
 } from "../lib/types";
 import { MAX_TAB_TRANSFER_BYTES } from "../lib/constants";
@@ -32,29 +33,48 @@ function extractElementHint(element: Element): string | null {
   return null;
 }
 
-function normalizeAsset(url: string, mimeType?: string | null, element?: Element): AssetCandidate | null {
+function normalizeAsset(
+  url: string,
+  element: Element,
+  elementType?: Exclude<AssetType, "link" | "unknown">,
+): AssetCandidate | null {
   if (!url) return null;
   const resolvedUrl = safeResolveUrl(url);
   if (!resolvedUrl) return null;
   const resolved = new URL(resolvedUrl);
+  if (resolved.protocol === "data:") return null;
   const downloadFilename = element instanceof HTMLAnchorElement ? element.getAttribute("download") : null;
-  const detectedType = detectAssetType(resolved.toString());
+  const urlType = detectAssetType(resolved.toString());
 
   return {
     sourceUrl: resolved.toString(),
     pageUrl: window.location.href,
-    detectedType: detectedType === "unknown" && downloadFilename ? "link" : detectedType,
+    detectedType: elementType ?? (urlType === "unknown" && downloadFilename ? "link" : urlType),
     suggestedFilename: downloadFilename,
     preferredFilename: downloadFilename,
-    elementTextHint: extractElementHint(element || document.body),
+    elementTextHint: extractElementHint(element),
     requiresAuthenticatedFetch:
       resolved.origin === window.location.origin ||
-      resolved.protocol === "blob:" ||
-      resolved.protocol === "data:",
+      resolved.protocol === "blob:",
     referrer: window.location.href,
-    mimeType,
+    mimeType: element instanceof HTMLSourceElement ? element.type || null : null,
     triggerKind: "scan",
   };
+}
+
+function getMediaUrl(element: Element): string {
+  if (element instanceof HTMLImageElement) {
+    return element.currentSrc || element.getAttribute("src") || element.getAttribute("data-src") || "";
+  }
+  if (element instanceof HTMLMediaElement) {
+    return element.currentSrc || element.getAttribute("src") || "";
+  }
+  return element.getAttribute("src") || "";
+}
+
+// Skips tracking pixels, spacers, and icons that are never what the user wants to save.
+function isTinyImage(element: HTMLImageElement): boolean {
+  return element.complete && element.naturalWidth > 0 && element.naturalWidth < 32 && element.naturalHeight < 32;
 }
 
 function isElementMatch(element: Element, url: string): boolean {
@@ -71,7 +91,7 @@ function describeAssetTarget(url: string): AssetDescriptionResponse {
   if (!resolvedUrl) return {};
 
   const allElements = Array.from(
-    document.querySelectorAll("img[src], video[src], video source[src], audio[src], audio source[src], a[href]"),
+    document.querySelectorAll("img, video, video source[src], audio, audio source[src], a[href]"),
   );
   const matchingElement = allElements.find((element) => isElementMatch(element, resolvedUrl));
   if (!matchingElement) return {};
@@ -93,35 +113,24 @@ function describeAssetTarget(url: string): AssetDescriptionResponse {
 function scanPageAssets(): AssetCandidate[] {
   const candidates = new Map<string, AssetCandidate>();
 
-  document.querySelectorAll("img[src]").forEach((element) => {
-    const asset = normalizeAsset(
-      (element as HTMLImageElement).currentSrc || element.getAttribute("src") || "",
-      "image/*",
-      element,
-    );
+  document.querySelectorAll("img").forEach((element) => {
+    if (isTinyImage(element)) return;
+    const asset = normalizeAsset(getMediaUrl(element), element, "image");
     if (asset) candidates.set(asset.sourceUrl, asset);
   });
 
-  document.querySelectorAll("video[src], video source[src]").forEach((element) => {
-    const url =
-      element instanceof HTMLVideoElement
-        ? element.currentSrc || element.getAttribute("src") || ""
-        : element.getAttribute("src") || "";
-    const asset = normalizeAsset(url, "video/*", element);
+  document.querySelectorAll("video, video source[src]").forEach((element) => {
+    const asset = normalizeAsset(getMediaUrl(element), element, "video");
     if (asset) candidates.set(asset.sourceUrl, asset);
   });
 
-  document.querySelectorAll("audio[src], audio source[src]").forEach((element) => {
-    const url =
-      element instanceof HTMLAudioElement
-        ? element.currentSrc || element.getAttribute("src") || ""
-        : element.getAttribute("src") || "";
-    const asset = normalizeAsset(url, "audio/*", element);
+  document.querySelectorAll("audio, audio source[src]").forEach((element) => {
+    const asset = normalizeAsset(getMediaUrl(element), element, "audio");
     if (asset) candidates.set(asset.sourceUrl, asset);
   });
 
   document.querySelectorAll("a[href]").forEach((element) => {
-    const asset = normalizeAsset(element.getAttribute("href") || "", null, element);
+    const asset = normalizeAsset(element.getAttribute("href") || "", element);
     if (asset && (asset.detectedType !== "unknown" || asset.preferredFilename)) {
       candidates.set(asset.sourceUrl, asset);
     }
