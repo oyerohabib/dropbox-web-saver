@@ -1,0 +1,17 @@
+name: Feature idea
+description: Suggest something new or a way to make the extension better.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like?
+      description: Describe the feature or improvement.
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Why would it help?
+      description: What are you trying to do, and what gets in the way today?
