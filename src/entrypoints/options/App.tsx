@@ -4,6 +4,7 @@ import { RecentSaves } from "../../components/RecentSaves";
 import { SetupWizard } from "../../components/SetupWizard";
 import { Button, CopyField, Skeleton, StatusMessage, type StatusTone } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
+import { REPO_URL } from "../../lib/project";
 import { maskAppKey } from "../../lib/utils/app-key";
 import type {
   DropboxAuthState,
@@ -195,6 +196,11 @@ export function OptionsApp() {
         Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc.
         {" · "}
         <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
+        <div className="actions-wrap footer-links">
+          <a href="/feedback.html" rel="noopener" target="_blank">Send feedback</a>
+          <a href="/feedback.html?kind=bug" rel="noopener" target="_blank">Report a bug</a>
+          <a href={REPO_URL} rel="noopener noreferrer" target="_blank">Source on GitHub</a>
+        </div>
       </footer>
     </div>
   );

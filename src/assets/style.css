@@ -895,6 +895,12 @@ a.secondary-button {
   text-align: center;
 }
 
+.footer-links {
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
 @media (max-width: 640px) {
   .folder-actions,
   .create-folder {
