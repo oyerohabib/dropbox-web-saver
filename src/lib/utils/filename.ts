@@ -1,30 +1,61 @@
 const MIME_EXTENSION_MAP: Record<string, string> = {
   "image/jpeg": "jpg",
+  "image/jpg": "jpg",
   "image/png": "png",
   "image/gif": "gif",
   "image/webp": "webp",
+  "image/avif": "avif",
+  "image/heic": "heic",
+  "image/bmp": "bmp",
+  "image/tiff": "tiff",
   "image/svg+xml": "svg",
   "video/mp4": "mp4",
   "video/webm": "webm",
+  "video/quicktime": "mov",
   "audio/mpeg": "mp3",
   "audio/mp4": "m4a",
   "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/aac": "aac",
+  "audio/flac": "flac",
   "application/pdf": "pdf",
   "application/zip": "zip",
 };
 
-function hasExtension(input: string): boolean {
+const MAX_NAME_LENGTH = 80;
+
+export function hasExtension(input: string): boolean {
   return /\.[a-z0-9]{2,8}$/i.test(input);
 }
 
+export function normalizeMimeType(mimeType?: string | null): string | null {
+  const normalized = mimeType?.split(";")[0]?.trim().toLowerCase();
+  return normalized || null;
+}
+
 function getExtensionForMimeType(mimeType?: string | null): string | undefined {
-  return mimeType ? MIME_EXTENSION_MAP[mimeType.toLowerCase()] : undefined;
+  const normalized = normalizeMimeType(mimeType);
+  return normalized ? MIME_EXTENSION_MAP[normalized] : undefined;
 }
 
 function appendExtensionIfMissing(input: string, mimeType?: string | null): string {
   const extension = getExtensionForMimeType(mimeType);
   if (!extension || hasExtension(input)) return input;
   return `${input}.${extension}`;
+}
+
+function limitNameLength(input: string): string {
+  const collapsed = input.replace(/\s+/g, " ").trim();
+  const extensionMatch = collapsed.match(/\.[a-z0-9]{2,8}$/i);
+  const extension = extensionMatch?.[0] ?? "";
+  const base = extension ? collapsed.slice(0, -extension.length) : collapsed;
+  if (base.length <= MAX_NAME_LENGTH) return collapsed;
+  return `${base.slice(0, MAX_NAME_LENGTH).trim()}${extension}`;
+}
+
+function buildName(input: string, mimeType?: string | null): string {
+  return sanitizeFilename(appendExtensionIfMissing(limitNameLength(input), mimeType));
 }
 
 function extractLastUrlSegment(sourceUrl: string): string | null {
@@ -57,24 +88,22 @@ export function deriveFilename(
   ];
   for (const candidate of explicitCandidates) {
     if (candidate?.trim()) {
-      return sanitizeFilename(appendExtensionIfMissing(candidate.trim(), mimeType));
+      return buildName(candidate, mimeType);
     }
   }
 
   const lastSegment = extractLastUrlSegment(sourceUrl);
   if (lastSegment && hasExtension(lastSegment)) {
-    return sanitizeFilename(lastSegment);
+    return buildName(lastSegment);
   }
   if (hints?.contentDispositionFilename?.trim()) {
-    return sanitizeFilename(
-      appendExtensionIfMissing(hints.contentDispositionFilename.trim(), mimeType),
-    );
+    return buildName(hints.contentDispositionFilename, mimeType);
   }
   if (hints?.elementTextHint?.trim()) {
-    return sanitizeFilename(appendExtensionIfMissing(hints.elementTextHint.trim(), mimeType));
+    return buildName(hints.elementTextHint, mimeType);
   }
   if (lastSegment) {
-    return sanitizeFilename(appendExtensionIfMissing(lastSegment, mimeType));
+    return buildName(lastSegment, mimeType);
   }
 
   const extension = getExtensionForMimeType(mimeType);
