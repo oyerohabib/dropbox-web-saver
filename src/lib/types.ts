@@ -108,6 +108,12 @@ export interface ExtensionSettings {
   savePreferences: SavePreferences;
 }
 
+export interface SetupProgress {
+  createdApp: boolean;
+  enabledScopes: boolean;
+  addedRedirectUri: boolean;
+}
+
 export interface ExtensionSettingsPatch {
   appKey?: string | null;
   lastUsedFolderPath?: string | null;

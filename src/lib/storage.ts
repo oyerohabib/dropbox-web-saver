@@ -6,6 +6,7 @@ import type {
   PendingSaveState,
   RecentSaveRecord,
   SaveResult,
+  SetupProgress,
 } from "./types";
 
 export const STORAGE_KEYS = {
@@ -15,6 +16,13 @@ export const STORAGE_KEYS = {
   pendingSave: "pendingSave",
   lastResult: "lastResult",
   saveWindowId: "saveWindowId",
+  setupProgress: "setupProgress",
+};
+
+const defaultSetupProgress: SetupProgress = {
+  createdApp: false,
+  enabledScopes: false,
+  addedRedirectUri: false,
 };
 
 const defaultSettings: ExtensionSettings = {
@@ -105,6 +113,19 @@ export async function getSaveWindowId(): Promise<number | null> {
 
 export async function setSaveWindowId(windowId: number | null): Promise<void> {
   await chrome.storage.session.set({ [STORAGE_KEYS.saveWindowId]: windowId });
+}
+
+export async function getSetupProgress(): Promise<SetupProgress> {
+  const result = (await chrome.storage.local.get(
+    STORAGE_KEYS.setupProgress,
+  )) as Record<string, Partial<SetupProgress> | undefined>;
+  return { ...defaultSetupProgress, ...(result[STORAGE_KEYS.setupProgress] ?? {}) };
+}
+
+export async function setSetupProgress(partial: Partial<SetupProgress>): Promise<SetupProgress> {
+  const next = { ...(await getSetupProgress()), ...partial };
+  await chrome.storage.local.set({ [STORAGE_KEYS.setupProgress]: next });
+  return next;
 }
 
 export async function setLastResult(result: SaveResult | null): Promise<void> {
