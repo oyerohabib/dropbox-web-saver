@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { RecentSaves } from "../../components/RecentSaves";
-import { Button, StatusMessage, type StatusTone } from "../../components/ui";
+import { Button, CopyField, Skeleton, StatusMessage, type StatusTone } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
 import type {
   DropboxAuthState,
@@ -121,8 +121,11 @@ export function OptionsApp() {
           <Button loading={busyAction === "appKey"} onClick={() => void saveAppKey()}>
             Save App Key
           </Button>
-          <div className="muted">Redirect URI</div>
-          <div className="path-pill">{authState?.redirectUri || "Loading..."}</div>
+          <div className="field">
+            <span className="field-label">Redirect URI</span>
+            {authState?.redirectUri ? <CopyField value={authState.redirectUri} /> : <Skeleton rows={1} />}
+            <span className="muted">Add this exact URI under OAuth 2 → Redirect URIs in your Dropbox app console.</span>
+          </div>
         </section>
 
         <section className="panel stack">
