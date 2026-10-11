@@ -9,6 +9,8 @@ import type {
   StartScanFlowResponse,
 } from "../../lib/types";
 
+const POPUP_RECENT_LIMIT = 5;
+
 export function PopupApp() {
   const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
   const [recentSaves, setRecentSaves] = useState<RecentSaveRecord[]>([]);
@@ -128,7 +130,15 @@ export function PopupApp() {
         />
       </section>
 
-      <RecentSaves items={recentSaves} />
+      <RecentSaves
+        items={recentSaves}
+        limit={POPUP_RECENT_LIMIT}
+        onViewAll={() => {
+          void chrome.tabs
+            .create({ url: chrome.runtime.getURL("options.html#recent-saves") })
+            .then(() => window.close());
+        }}
+      />
     </div>
   );
 }
