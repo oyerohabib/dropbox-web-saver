@@ -220,13 +220,16 @@ async function fetchAssetBytes(candidate: AssetCandidate, tabId?: number): Promi
   return fallback.ok ? fallback : { ...fallback, error: tabError || fallback.error };
 }
 
-async function executeSaveRequest(request: SaveRequest, reason?: "auth_required" | "folder_required") {
+async function executeSaveRequest(
+  request: SaveRequest,
+  options: { fromSaveWindow?: boolean } = {},
+) {
   const result = await saveAsset(request, { fetchAssetBytes, probeAssetMetadata });
-  if (result.status === "needs_auth") {
-    await setPendingSave(createPendingSave(request, "auth_required"));
-    await openSaveWindow();
-  } else if (result.status === "needs_folder") {
-    await setPendingSave(createPendingSave(request, reason || "folder_required"));
+  // Saves started from the save window keep its existing pending flow; reopening would close that window.
+  if (!options.fromSaveWindow && (result.status === "needs_auth" || result.status === "needs_folder")) {
+    await setPendingSave(
+      createPendingSave(request, result.status === "needs_auth" ? "auth_required" : "folder_required"),
+    );
     await openSaveWindow();
   }
   await setBadgeForResult(result);
@@ -510,7 +513,7 @@ export default defineBackground(() => {
                 destinationPath: message.destinationPath,
                 tabId: pending.tabId,
                 finalFilename: message.finalFilename ?? pending.selectedFilename,
-              }),
+              }, { fromSaveWindow: true }),
             );
             return;
           }
@@ -520,7 +523,7 @@ export default defineBackground(() => {
               ...pending.request,
               destinationPath: message.destinationPath,
               finalFilename: message.finalFilename ?? pending.request.finalFilename,
-            }),
+            }, { fromSaveWindow: true }),
           );
           return;
         }
