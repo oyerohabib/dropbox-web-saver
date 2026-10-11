@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="scene.css" />
+    <script src="scene.js"></script>
+    <style>
+      body.marquee {
+        display: flex;
+        align-items: center;
+        gap: 56px;
+        width: 1400px;
+        height: 560px;
+        padding: 0 0 0 80px;
+        background:
+          radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.16), transparent 45%),
+          linear-gradient(135deg, #0061fe, #0047c2);
+        color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      .marquee .copy {
+        max-width: 560px;
+      }
+      .marquee .brand {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .marquee .brand img {
+        border-radius: 8px;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+      }
+      .marquee h1 {
+        font-size: 52px;
+      }
+      .marquee p {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 21px;
+      }
+      .marquee .window {
+        align-self: flex-start;
+        margin-top: 60px;
+        border-color: rgba(255, 255, 255, 0.4);
+      }
+    </style>
+  </head>
+  <body class="marquee">
+    <div class="copy">
+      <div class="brand"><img alt="" src="/icons/128.png" />Web Saver for Dropbox</div>
+      <h1>Save anything on the web to Dropbox.</h1>
+      <p>Right-click an image, video or file link, or scan a page and save many files at once.</p>
+    </div>
+    <div class="window" style="width: 600px; height: 560px">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span>Save to Dropbox – Web Saver</div>
+      <iframe id="frame" src="/save.html?scene=scan"></iframe>
+    </div>
+    <script>
+      sceneFrame(document.getElementById("frame"), {
+        css: ".hero, .page-footer { display: none !important; } .app-shell { padding-top: 14px; }",
+        actions: (doc) => {
+          const boxes = [...doc.querySelectorAll(".asset-row input")];
+          [1, 2, 3, 4].forEach((index) => boxes[index]?.click());
+        },
+      });
+    </script>
+  </body>
+</html>

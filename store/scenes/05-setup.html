@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="scene.css" />
+    <script src="scene.js"></script>
+  </head>
+  <body class="scene">
+    <div class="copy" style="max-width: 380px">
+      <div class="brand"><img alt="" src="/icons/128.png" />Web Saver for Dropbox</div>
+      <h1>Private by design.</h1>
+      <p>You connect your own Dropbox app in about 3 minutes, with a guide for every step. There is no Web Saver server.</p>
+      <ul class="checks">
+        <li>Keys and tokens stay in your browser</li>
+        <li>No analytics or tracking</li>
+        <li>Open source under the MIT license</li>
+      </ul>
+    </div>
+
+    <div class="window" style="width: 700px; height: 740px">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span>Web Saver for Dropbox – Settings</div>
+      <iframe id="frame" src="/options.html?scene=setup"></iframe>
+    </div>
+
+    <script>
+      sceneFrame(document.getElementById("frame"), {
+        actions: (doc, win) => {
+          const target = doc.getElementById("setup");
+          if (target) win.scrollTo(0, target.getBoundingClientRect().top + win.scrollY - 12);
+        },
+      });
+    </script>
+  </body>
+</html>

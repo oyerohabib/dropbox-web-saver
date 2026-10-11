@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="scene.css" />
+    <script src="scene.js"></script>
+  </head>
+  <body class="scene">
+    <div class="copy">
+      <div class="brand"><img alt="" src="/icons/128.png" />Web Saver for Dropbox</div>
+      <h1>Pick the folder. Rename if you like.</h1>
+      <p>Browse your Dropbox folders, create new ones on the spot, and set a default for next time.</p>
+      <ul class="checks">
+        <li>Review the first save, then save instantly</li>
+        <li>Breadcrumbs and one-click new folders</li>
+        <li>Optional rename before saving</li>
+      </ul>
+    </div>
+
+    <div class="window" style="width: 600px; height: 680px">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span>Save to Dropbox – Web Saver</div>
+      <iframe id="frame" src="/save.html?scene=single"></iframe>
+    </div>
+
+    <script>
+      sceneFrame(document.getElementById("frame"), {
+        css: ".hero, .page-footer { display: none !important; } .app-shell { padding-top: 14px; }",
+      });
+    </script>
+  </body>
+</html>

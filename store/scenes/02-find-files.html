@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="scene.css" />
+    <script src="scene.js"></script>
+  </head>
+  <body class="scene">
+    <div class="copy">
+      <div class="brand"><img alt="" src="/icons/128.png" />Web Saver for Dropbox</div>
+      <h1>Save a whole page of files at once.</h1>
+      <p>Scan any page to list its photos, videos and downloads. Tick what you want and save them together.</p>
+      <ul class="checks">
+        <li>Thumbnails, sizes and file types</li>
+        <li>Icons and avatars hidden automatically</li>
+        <li>Progress and a clear summary</li>
+      </ul>
+    </div>
+
+    <div class="window" style="width: 600px; height: 680px">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span>Save to Dropbox – Web Saver</div>
+      <iframe id="frame" src="/save.html?scene=scan"></iframe>
+    </div>
+
+    <script>
+      sceneFrame(document.getElementById("frame"), {
+        css: ".hero, .page-footer { display: none !important; } .app-shell { padding-top: 14px; }",
+        actions: (doc) => {
+          const boxes = [...doc.querySelectorAll(".asset-row input")];
+          [1, 2, 3, 4].forEach((index) => boxes[index]?.click());
+        },
+      });
+    </script>
+  </body>
+</html>

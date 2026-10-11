@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="scene.css" />
+    <style>
+      .browser {
+        width: 720px;
+        height: 680px;
+        background: #fff;
+      }
+      .omnibox {
+        display: flex;
+        flex: none;
+        align-items: center;
+        gap: 10px;
+        height: 44px;
+        padding: 0 14px;
+        border-bottom: 1px solid #e3e8ef;
+        background: #fff;
+      }
+      .omnibox .url {
+        flex: 1;
+        padding: 7px 14px;
+        border-radius: 999px;
+        background: #f1f4f9;
+        color: #3c4a59;
+        font-size: 13px;
+      }
+      .omnibox .ext {
+        width: 22px;
+        height: 22px;
+      }
+      .page {
+        position: relative;
+        flex: 1;
+        padding: 26px 40px;
+        overflow: hidden;
+        font-family: Georgia, "Times New Roman", serif;
+      }
+      .page .kicker {
+        color: #c4572f;
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .page h2 {
+        margin: 6px 0 10px;
+        font-size: 30px;
+        line-height: 1.15;
+      }
+      .byline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+        color: #637282;
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 13px;
+      }
+      .byline img {
+        width: 26px;
+        height: 26px;
+      }
+      .hero-photo {
+        display: block;
+        width: 100%;
+        height: 300px;
+        border-radius: 10px;
+        object-fit: cover;
+      }
+      .lines {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .lines i {
+        height: 10px;
+        border-radius: 5px;
+        background: #e8ecf2;
+      }
+      .menu {
+        position: absolute;
+        top: 190px;
+        left: 330px;
+        width: 290px;
+        padding: 6px 0;
+        border: 1px solid #d5dce6;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 12px 32px rgba(16, 24, 40, 0.22);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 13px;
+      }
+      .menu div {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 14px;
+        color: #1e1919;
+      }
+      .menu hr {
+        margin: 5px 0;
+        border: 0;
+        border-top: 1px solid #e3e8ef;
+      }
+      .menu .active {
+        background: #0061fe;
+        color: #fff;
+      }
+      .menu .active img {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6);
+      }
+      .menu .spacer {
+        width: 16px;
+      }
+      .cursor {
+        position: absolute;
+        top: 178px;
+        left: 318px;
+        width: 18px;
+      }
+      .toast {
+        position: absolute;
+        right: 20px;
+        bottom: 20px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        width: 340px;
+        padding: 14px 14px 14px 16px;
+        border: 1px solid #e3e8ef;
+        border-left: 4px solid #1e8e3e;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(16, 24, 40, 0.16);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      .toast .icon {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #1e8e3e;
+        color: #fff;
+        font-weight: 700;
+      }
+      .toast .title {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .toast .detail {
+        margin-top: 2px;
+        color: #637282;
+      }
+      .toast .link {
+        display: inline-block;
+        margin-top: 6px;
+        color: #0061fe;
+        font-weight: 600;
+      }
+      .toast .close {
+        margin-left: auto;
+        color: #637282;
+        font-size: 18px;
+        line-height: 1;
+      }
+    </style>
+  </head>
+  <body class="scene">
+    <div class="copy">
+      <div class="brand"><img alt="" src="/icons/128.png" />Web Saver for Dropbox</div>
+      <h1>Right-click. Saved to Dropbox.</h1>
+      <p>Send any image, video, audio file or download link straight into your Dropbox. No downloading, no re-uploading.</p>
+      <ul class="checks">
+        <li>Works on images, videos, audio and file links</li>
+        <li>Goes to the folder you choose</li>
+        <li>A notice confirms every save</li>
+      </ul>
+    </div>
+
+    <div class="window browser">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span>A week in Iceland — Wanderlust</div>
+      <div class="omnibox">
+        <span class="url">🔒 wanderlust.example/iceland-photo-diary</span>
+        <img alt="" class="ext" src="/icons/48.png" />
+      </div>
+      <div class="page">
+        <div class="kicker">Photo diary</div>
+        <h2>A week chasing glaciers and northern lights in Iceland</h2>
+        <div class="byline"><img alt="" src="art/author.svg" />Maya Jónsdóttir · 8 min read</div>
+        <img alt="" class="hero-photo" src="art/glacier-lagoon.jpg" />
+        <div class="lines"><i></i><i style="width: 92%"></i><i style="width: 78%"></i></div>
+
+        <svg class="cursor" viewBox="0 0 24 24"><path d="M3 2 L3 20 L8 15 L11 22 L14 21 L11 14 L18 14 Z" fill="#111" stroke="#fff" stroke-width="1.5"/></svg>
+        <div class="menu">
+          <div><span class="spacer"></span>Open image in new tab</div>
+          <div><span class="spacer"></span>Save image as…</div>
+          <div><span class="spacer"></span>Copy image</div>
+          <div><span class="spacer"></span>Copy image address</div>
+          <hr />
+          <div class="active"><img alt="" src="/icons/32.png" />Save this image to Dropbox</div>
+          <hr />
+          <div><span class="spacer"></span>Inspect</div>
+        </div>
+
+        <div class="toast">
+          <span class="icon">✓</span>
+          <div>
+            <div class="title">Saved to Dropbox</div>
+            <div class="detail">glacier-lagoon.jpg → /Photos/Iceland 2026</div>
+            <span class="link">Open in Dropbox</span>
+          </div>
+          <span class="close">×</span>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
