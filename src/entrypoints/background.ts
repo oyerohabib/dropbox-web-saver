@@ -10,6 +10,7 @@ import {
   sendMessageToTab,
 } from "../lib/browser";
 import { connectDropbox, disconnectDropbox, getAuthState } from "../lib/dropbox-auth";
+import { UNINSTALL_FEEDBACK_URL } from "../lib/project";
 import { getCurrentAccount, listFolders } from "../lib/dropbox-api";
 import {
   createFolderAndSelect,
@@ -427,6 +428,7 @@ export default defineBackground(() => {
 
   chrome.runtime.onInstalled.addListener((details) => {
     void initializeContextMenus();
+    void chrome.runtime.setUninstallURL(UNINSTALL_FEEDBACK_URL);
     if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
       void chrome.runtime.openOptionsPage();
     }
