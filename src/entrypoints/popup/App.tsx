@@ -88,13 +88,7 @@ export function PopupApp() {
             <button
               className="secondary-button"
               onClick={() => {
-                chrome.windows.create({
-                  url: chrome.runtime.getURL("save.html"),
-                  type: "popup",
-                  width: 560,
-                  height: 820,
-                });
-                window.close();
+                void sendBackgroundMessage({ type: "OPEN_FOLDER_SETTINGS" }).then(() => window.close());
               }}
               type="button"
             >

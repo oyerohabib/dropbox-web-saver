@@ -166,7 +166,13 @@ export type BackgroundMessage =
   | { type: "SAVE_CANDIDATE"; request: SaveRequest }
   | { type: "GET_RECENT_SAVES" }
   | { type: "SCAN_ACTIVE_TAB_ASSETS" }
-  | { type: "START_SCAN_FLOW" };
+  | { type: "START_SCAN_FLOW" }
+  | { type: "OPEN_FOLDER_SETTINGS" };
+
+export interface BackgroundErrorResponse {
+  backgroundError: true;
+  message: string;
+}
 
 export type ContentScriptMessage =
   | { type: "PING" }

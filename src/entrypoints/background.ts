@@ -527,6 +527,10 @@ export default defineBackground(() => {
           );
           return;
         }
+        case "OPEN_FOLDER_SETTINGS":
+          await openFolderSettingsWindow();
+          sendResponse({ ok: true });
+          return;
         case "SAVE_CANDIDATE":
           sendResponse(
             await executeSaveRequest({

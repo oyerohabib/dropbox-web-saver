@@ -143,10 +143,10 @@ export function OptionsApp() {
             </button>
             <button
               className="ghost-button"
-              onClick={() => chrome.windows.create({ url: chrome.runtime.getURL("save.html"), type: "popup", width: 560, height: 820 })}
+              onClick={() => void sendBackgroundMessage({ type: "OPEN_FOLDER_SETTINGS" })}
               type="button"
             >
-              Open Save Window
+              Choose Default Folder
             </button>
           </div>
         </section>
