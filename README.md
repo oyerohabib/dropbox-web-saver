@@ -20,6 +20,7 @@ Contributions and feedback are welcome. See [Contributing](#contributing) and [F
 - Hybrid upload strategy:
   - Dropbox-side URL import for public assets
   - Direct upload of bytes fetched with the page's login session for private or same-site assets
+- No access to websites at install: the extension only touches the tab you right-click or scan (`activeTab`), and asks you to allow a single site when a file on it can only be downloaded from your browser
 - Recent saves log (last 20) with relative times, folder links, and a **Clear history** button
 - Supports common image, video, audio, document, archive, and design formats. See [Supported files](#supported-files).
 
@@ -156,6 +157,7 @@ The toolbar icons are generated at build time from `src/assets/icon.svg` by `@wx
 - Chromium browsers only.
 - Can't run on browser-internal pages such as `chrome://` pages and the Chrome Web Store.
 - Assets fetched through the page's login session are limited to about 40 MB when transferred from the page. Larger files fall back to a direct fetch from the extension.
+- Some files (for example images served from a separate CDN) can only be saved after you allow their site in the save window. Access you grant can be removed from the extension's details page in Chrome.
 - Streamed video (HLS/DASH, `blob:` sources from players such as YouTube) and CSS background images aren't detected.
 - The Dropbox app key and tokens are stored locally in the browser profile. There is no backend.
 
