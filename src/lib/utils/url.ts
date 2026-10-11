@@ -1,3 +1,5 @@
+import { getFileTypeForPath } from "./file-types";
+
 export function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -9,10 +11,7 @@ export function isHttpUrl(value: string): boolean {
 
 export function isLikelyDirectAssetUrl(value: string): boolean {
   if (!isHttpUrl(value)) return false;
-  const pathname = new URL(value).pathname.toLowerCase();
-  return /\.(png|jpe?g|gif|webp|svg|bmp|mp4|webm|mov|m4v|avi|mp3|wav|ogg|pdf|zip|psd|ai|fig|sketch)$/i.test(
-    pathname,
-  );
+  return getFileTypeForPath(new URL(value).pathname) !== null;
 }
 
 export function getDropboxWebUrl(folderPath: string): string {
