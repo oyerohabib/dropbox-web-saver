@@ -1007,6 +1007,41 @@ a.secondary-button {
   background: var(--surface);
 }
 
+.file-types {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.file-types-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: var(--space-3);
+  padding: 10px 12px;
+}
+
+.file-types-row + .file-types-row {
+  border-top: 1px solid var(--line);
+}
+
+.file-types dt {
+  font-weight: 600;
+}
+
+.file-types dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+@media (max-width: 440px) {
+  .file-types-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
 .recent-item {
   display: flex;
   flex-direction: column;

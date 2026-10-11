@@ -6,6 +6,7 @@ import { Button, CopyField, Skeleton, StatusMessage, type StatusTone } from "../
 import { sendBackgroundMessage } from "../../lib/browser";
 import { REPO_URL } from "../../lib/project";
 import { maskAppKey } from "../../lib/utils/app-key";
+import { SUPPORTED_FILE_TYPES } from "../../lib/utils/file-types";
 import type {
   DropboxAuthState,
   ExtensionSettings,
@@ -118,6 +119,7 @@ export function OptionsApp() {
         {authState && !signedIn ? <a href="#setup">Setup</a> : null}
         <a href="#preferences">Save preferences</a>
         {signedIn ? <a href="#connection">Dropbox connection</a> : null}
+        <a href="#supported-files">Supported files</a>
         <a href="#recent-saves">Recent saves</a>
       </nav>
 
@@ -183,6 +185,28 @@ export function OptionsApp() {
       ) : null}
 
       {signedIn && showGuide ? setupSection : null}
+
+      <section className="panel stack" id="supported-files">
+        <div>
+          <div className="section-title">Supported files</div>
+          <div className="muted">
+            Right-click any image, video, or audio on a page to save it, whatever its format. Links and page scans
+            recognise these file types:
+          </div>
+        </div>
+        <dl className="file-types">
+          {SUPPORTED_FILE_TYPES.map((group) => (
+            <div className="file-types-row" key={group.label}>
+              <dt>{group.label}</dt>
+              <dd>{group.extensions.join(", ")}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="muted">
+          Links to other files still work when the site serves them as a download. Streamed video (such as YouTube)
+          can&apos;t be saved.
+        </div>
+      </section>
 
       <div id="recent-saves" style={{ scrollMarginTop: 16 }}>
         <RecentSaves
