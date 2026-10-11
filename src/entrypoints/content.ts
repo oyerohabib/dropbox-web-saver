@@ -200,8 +200,8 @@ async function fetchAssetBytes(url: string, referrer?: string): Promise<AssetFet
 }
 
 export default defineContentScript({
-  matches: ["http://*/*", "https://*/*"],
-  runAt: "document_idle",
+  registration: "runtime",
+  matches: [],
   main() {
     chrome.runtime.onMessage.addListener((message: ContentScriptMessage, _sender, sendResponse) => {
       void (async () => {

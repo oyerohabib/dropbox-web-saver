@@ -14,7 +14,7 @@ export default defineConfig({
     description:
       "Save images, videos, audio and files from any web page straight to your Dropbox. Not affiliated with Dropbox, Inc.",
     permissions: ["storage", "contextMenus", "identity", "scripting", "activeTab"],
-    host_permissions: ["http://*/*", "https://*/*"],
+    optional_host_permissions: ["http://*/*", "https://*/*"],
     action: {
       default_title: "Web Saver for Dropbox",
       default_popup: "popup.html",
