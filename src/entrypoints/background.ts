@@ -46,6 +46,7 @@ import type {
 import { applyProbeResult, probeAssetMetadata } from "../lib/asset-probe";
 import { detectAssetType } from "../lib/utils/asset";
 import { deriveCandidateFilename, hasExtension } from "../lib/utils/filename";
+import { markUserSaveModeChoice, shouldAutoSwitchToInstant } from "../lib/utils/save-mode";
 import { getDropboxWebUrl, isLikelyDirectAssetUrl } from "../lib/utils/url";
 
 const MENU_IDS = {
@@ -287,6 +288,13 @@ async function executeSaveRequest(
   return result;
 }
 
+async function saveFromReviewWindow(request: SaveRequest): Promise<SaveResult> {
+  const result = await executeSaveRequest(request, { fromSaveWindow: true });
+  if (!shouldAutoSwitchToInstant(await getSettings(), result)) return result;
+  await updateSettings({ savePreferences: { saveMode: "one_click" } });
+  return { ...result, switchedToInstant: true };
+}
+
 async function queueSaveFlow(
   request: SaveRequest,
   settings: ExtensionSettings,
@@ -520,7 +528,7 @@ export default defineBackground(() => {
           ) {
             await setTokens(null);
           }
-          sendResponse(await updateSettings(message.settings));
+          sendResponse(await updateSettings(markUserSaveModeChoice(message.settings)));
           return;
         }
         case "LIST_FOLDERS":
@@ -560,22 +568,22 @@ export default defineBackground(() => {
               return;
             }
             sendResponse(
-              await executeSaveRequest({
+              await saveFromReviewWindow({
                 candidate: selectedCandidate,
                 destinationPath: message.destinationPath,
                 tabId: pending.tabId,
                 finalFilename: message.finalFilename ?? pending.selectedFilename,
-              }, { fromSaveWindow: true }),
+              }),
             );
             return;
           }
 
           sendResponse(
-            await executeSaveRequest({
+            await saveFromReviewWindow({
               ...pending.request,
               destinationPath: message.destinationPath,
               finalFilename: message.finalFilename ?? pending.request.finalFilename,
-            }, { fromSaveWindow: true }),
+            }),
           );
           return;
         }
