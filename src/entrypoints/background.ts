@@ -556,8 +556,8 @@ export default defineBackground(() => {
 
           if (pending.mode === "scan") {
             const selectedCandidate = message.candidate
-              ?? pending.assets.find((asset) => asset.sourceUrl === pending.selectedSourceUrl)
-              ?? pending.assets[0];
+              ? pending.assets.find((asset) => asset.sourceUrl === message.candidate?.sourceUrl)
+              : undefined;
             if (!selectedCandidate) {
               sendResponse({
                 ok: false,
@@ -567,14 +567,15 @@ export default defineBackground(() => {
               } satisfies SaveResult);
               return;
             }
-            sendResponse(
-              await saveFromReviewWindow({
-                candidate: selectedCandidate,
-                destinationPath: message.destinationPath,
-                tabId: pending.tabId,
-                finalFilename: message.finalFilename ?? pending.selectedFilename,
-              }),
-            );
+            const result = await saveFromReviewWindow({
+              candidate: selectedCandidate,
+              destinationPath: message.destinationPath,
+              tabId: pending.tabId,
+              finalFilename: message.finalFilename,
+            });
+            // A successful save clears the pending flow; keep the scan so the rest of the batch can save.
+            await setPendingSave(pending);
+            sendResponse(result);
             return;
           }
 
