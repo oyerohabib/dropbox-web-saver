@@ -3,6 +3,7 @@ import { FolderPicker } from "../../components/FolderPicker";
 import { Button, Spinner, StatusMessage, type StatusTone } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
 import { deriveCandidateFilename } from "../../lib/utils/filename";
+import { getDropboxWebUrl } from "../../lib/utils/url";
 import type {
   AssetCandidate,
   DropboxAuthState,
@@ -11,6 +12,8 @@ import type {
   SavePreferences,
   SaveResult,
 } from "../../lib/types";
+
+const SUCCESS_CLOSE_DELAY_MS = 1_200;
 
 function getReviewCandidate(flow: PendingSaveState | null, selectedSourceUrl: string | null): AssetCandidate | null {
   if (!flow) return null;
@@ -28,6 +31,7 @@ export function SaveApp() {
   const [loaded, setLoaded] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savedTo, setSavedTo] = useState<{ folderPath: string; filename: string } | null>(null);
   const [changingFolder, setChangingFolder] = useState(false);
   const [savePreferences, setSavePreferences] = useState<SavePreferences | null>(null);
 
@@ -134,10 +138,11 @@ export function SaveApp() {
         candidate: saveFlow.mode === "scan" ? reviewCandidate : undefined,
         finalFilename: filenameDraft.trim() || resolvedFilename,
       });
-      setStatus({ tone: result.ok ? "success" : "error", text: result.message });
       if (result.ok) {
-        window.close();
+        setSavedTo({ folderPath: selectedPath, filename: result.filename ?? filenameDraft });
+        setTimeout(() => window.close(), SUCCESS_CLOSE_DELAY_MS);
       } else {
+        setStatus({ tone: "error", text: result.message });
         await load();
       }
     } catch (error) {
@@ -154,6 +159,21 @@ export function SaveApp() {
           <Spinner size="lg" />
           <span>Loading…</span>
         </div>
+      </div>
+    );
+  }
+
+  if (savedTo) {
+    return (
+      <div className="app-shell">
+        <section className="panel stack" style={{ alignItems: "center", textAlign: "center", padding: 32 }}>
+          <span className="badge success" style={{ fontSize: 20, padding: "8px 14px" }}>✓</span>
+          <div className="section-title">Saved to {savedTo.folderPath}</div>
+          <div className="muted break-anywhere">{savedTo.filename}</div>
+          <a href={getDropboxWebUrl(savedTo.folderPath)} rel="noopener noreferrer" target="_blank">
+            Open in Dropbox
+          </a>
+        </section>
       </div>
     );
   }
