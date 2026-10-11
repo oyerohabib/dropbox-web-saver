@@ -276,16 +276,6 @@ async function scanTab(tabId: number): Promise<AssetCandidate[]> {
   return response?.assets ?? [];
 }
 
-async function scanActiveTab(): Promise<AssetCandidate[]> {
-  const tab = await getActiveTab();
-  if (!tab?.id) return [];
-  try {
-    return await scanTab(tab.id);
-  } catch {
-    return [];
-  }
-}
-
 async function describeCandidate(candidate: AssetCandidate, tabId?: number): Promise<AssetCandidate> {
   if (!tabId) return candidate;
   try {
@@ -480,10 +470,6 @@ export default defineBackground(() => {
         case "GET_PENDING_SAVE":
           sendResponse(await getPendingSave());
           return;
-        case "CLEAR_PENDING_SAVE":
-          await setPendingSave(null);
-          sendResponse({ ok: true });
-          return;
         case "SAVE_PENDING": {
           const pending = await getPendingSave();
           if (!pending) {
@@ -532,19 +518,8 @@ export default defineBackground(() => {
           await openFolderSettingsWindow();
           sendResponse({ ok: true });
           return;
-        case "SAVE_CANDIDATE":
-          sendResponse(
-            await executeSaveRequest({
-              ...message.request,
-              tabId: message.request.tabId ?? (await getActiveTab())?.id,
-            }),
-          );
-          return;
         case "GET_RECENT_SAVES":
           sendResponse(await getRecentSaves());
-          return;
-        case "SCAN_ACTIVE_TAB_ASSETS":
-          sendResponse(await scanActiveTab());
           return;
         case "START_SCAN_FLOW":
           sendResponse(await startScanFlow());

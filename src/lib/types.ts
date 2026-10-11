@@ -156,16 +156,13 @@ export type BackgroundMessage =
   | { type: "LIST_FOLDERS"; path: string }
   | { type: "CREATE_FOLDER"; parentPath: string; name: string }
   | { type: "GET_PENDING_SAVE" }
-  | { type: "CLEAR_PENDING_SAVE" }
   | {
       type: "SAVE_PENDING";
       destinationPath: string;
       candidate?: AssetCandidate;
       finalFilename?: string | null;
     }
-  | { type: "SAVE_CANDIDATE"; request: SaveRequest }
   | { type: "GET_RECENT_SAVES" }
-  | { type: "SCAN_ACTIVE_TAB_ASSETS" }
   | { type: "START_SCAN_FLOW" }
   | { type: "OPEN_FOLDER_SETTINGS" };
 

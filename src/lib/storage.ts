@@ -106,10 +106,3 @@ export async function setSaveWindowId(windowId: number | null): Promise<void> {
 export async function setLastResult(result: SaveResult | null): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEYS.lastResult]: result });
 }
-
-export async function getLastResult(): Promise<SaveResult | null> {
-  const result = (await chrome.storage.local.get(
-    STORAGE_KEYS.lastResult,
-  )) as Record<string, SaveResult | null | undefined>;
-  return result[STORAGE_KEYS.lastResult] ?? null;
-}
