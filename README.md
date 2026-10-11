@@ -1,18 +1,21 @@
-# Dropbox Web Saver Extension
+# Web Saver for Dropbox
 
 Private Chromium extension (Chrome, Brave, Edge) for saving images, videos, audio, and linked files from any web page straight into Dropbox, without downloading them locally first.
 
+> Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc. It uses its own icon rather than the Dropbox logo, in line with the [Dropbox brand guidelines](https://www.dropbox.com/developers/reference/branding-guide).
+
 ## Features
 
-- Right-click actions: **Save image / video / audio to Dropbox** and **Save linked file to Dropbox**
-- **Scan page assets**: lists every image, video, audio file, and downloadable link on the current page so you can pick one
+- Right-click actions: **Save this image / video / audio to Dropbox** and **Save the file this link opens to Dropbox**
+- **Find files on this page**: lists every image, video, audio file, and downloadable link on the current page so you can pick one
 - Review window before each save: see the filename, rename it, and change the destination folder
 - Dropbox folder browser with inline folder creation and a remembered default folder
-- Per-user save preferences (see below)
+- Per-user save preferences, reachable from the popup, the toolbar icon's right-click menu, the settings page, and every review window
+- Save feedback: an in-page toast (saving, saved with an **Open in Dropbox** link, or failed with the reason) plus a toolbar badge
 - Hybrid upload strategy:
   - Dropbox-side URL import for public assets
   - Direct upload of bytes fetched with the page's login session for private or same-site assets
-- Recent saves log in the popup and settings page
+- Recent saves log (last 20) with relative times, folder links, and a **Clear history** button
 
 ## Dropbox app setup
 
@@ -22,7 +25,7 @@ Private Chromium extension (Chrome, Brave, Edge) for saving images, videos, audi
    - `files.metadata.read`
    - `files.metadata.write`
    - `files.content.write`
-3. Build and load the extension (next section), open its settings page, and copy the **Redirect URI** shown there. It looks like `https://<extension-id>.chromiumapp.org/dropbox`.
+3. Build and load the extension (next section). The settings page opens automatically on first install; click **Copy** next to the **Redirect URI**. It looks like `https://<extension-id>.chromiumapp.org/dropbox`.
 4. In the Dropbox App Console **Settings** tab, add that exact URI under **OAuth 2 Redirect URIs**.
 5. Copy the Dropbox **App key**, paste it into the extension settings page, click **Save App Key**, then **Connect Dropbox**.
 
@@ -45,23 +48,30 @@ Then in Chrome:
 
 ## Using it
 
-- **Right-click an image, video, or audio element** and choose the matching "Save ... to Dropbox" action.
-- **Right-click a link** that points to a file (PDF, ZIP, image, or a link with a `download` attribute) and choose **Save linked file to Dropbox**. Links to ordinary web pages are rejected.
-- **Scan a page**: right-click an empty spot on the page and choose **Scan page assets for Dropbox**, or open the toolbar popup and click **Scan Page Assets**.
-- **Change the default folder**: popup, then **Choose Folder**, or the settings page, then **Choose Default Folder**. You can also change the folder inside any review window.
+- **Right-click an image, video, or audio element** and choose **Save this image / video / audio to Dropbox**.
+- **Right-click a link** that points to a file (PDF, ZIP, image, or a link with a `download` attribute) and choose **Save the file this link opens to Dropbox**. Links to ordinary web pages are rejected with an error toast.
+  - When an image is wrapped in a link, both items appear: the image item saves the picture you see, the link item saves whatever the link points to (often a larger original or a different file).
+- **Find files on a page**: right-click an empty spot and choose **Find files on this page to save to Dropbox**, or open the toolbar popup and click **Scan this page**.
+- **Change the default folder**: click **Change** next to the default folder in the popup or on the settings page. You can also change the folder inside any review window.
+- While a save runs, a toast in the bottom-right corner of the page shows progress, then the result. The toolbar badge shows `…`, then `OK` or `ERR`. Browser-internal pages can't show toasts, so only the badge appears there.
 - Closing a review window cancels that save.
 
 ## Save preferences
 
-Set these on the settings page:
+Preferences save automatically. Open them from any of these places:
+
+- The **How saving works** card in the toolbar popup, or the gear icon in its header
+- Right-click the toolbar icon, then **Save preferences**
+- The top of the settings page
+- **Change how saving works** at the bottom of every review window
 
 | Preference | Options |
 | --- | --- |
-| Save mode | **Reviewed** (default) shows the review window first. **One-click** saves immediately to the remembered folder. |
-| Folder choice | **Remember last folder** (default) or **Ask every time** |
-| Rename prompt | When enabled, the review window shows an editable filename |
+| When I save | **Review first** (default) shows the review window. **Save instantly** uploads straight to the remembered folder. |
+| Folder | **Use last folder** (default) or **Ask every time** |
+| Rename files | When on, the review window shows an editable filename |
 
-One-click still opens the review window when a choice is needed: Dropbox isn't connected, no folder is remembered, folder choice is set to ask every time, or the rename prompt is on.
+Save instantly still opens the review window when a choice is needed: Dropbox isn't connected, no folder is remembered, the folder is set to ask every time, or renaming is on.
 
 ## Filenames
 
@@ -74,6 +84,8 @@ npx tsc --noEmit   # type check
 npm run test       # Vitest unit tests
 npm run build      # production build into .output/chrome-mv3
 ```
+
+The toolbar icons are generated at build time from `src/assets/icon.svg` by `@wxt-dev/auto-icons`.
 
 ## Known limitations
 
