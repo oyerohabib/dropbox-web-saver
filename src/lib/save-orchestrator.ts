@@ -61,8 +61,8 @@ export function createPendingScanState(
     assets,
     tabId,
     destinationPath,
-    selectedSourceUrl: assets[0]?.sourceUrl ?? null,
-    selectedFilename: assets[0] ? deriveCandidateFilename(assets[0]) : null,
+    selectedSourceUrl: null,
+    selectedFilename: null,
     createdAt: Date.now(),
     reason: "scan",
   };
