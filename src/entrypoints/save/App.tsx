@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { FolderPicker } from "../../components/FolderPicker";
 import { Button, Spinner, StatusMessage, type StatusTone } from "../../components/ui";
 import { openFeedbackTab, openPreferencesTab, openSettingsTab, sendBackgroundMessage } from "../../lib/browser";
+import { isSmallAsset } from "../../lib/utils/asset";
+import { summarizeBatch, type BatchItemResult, type BatchSummary } from "../../lib/utils/batch";
 import { deriveCandidateFilename } from "../../lib/utils/filename";
 import { formatFolderPath } from "../../lib/utils/folder-path";
-import { getDropboxWebUrl } from "../../lib/utils/url";
+import { getDomain, getDropboxWebUrl } from "../../lib/utils/url";
 import type {
   AssetCandidate,
   DropboxAuthState,
@@ -17,17 +19,59 @@ import type {
 const SUCCESS_CLOSE_DELAY_MS = 1_200;
 const KEPT_REVIEWING_CLOSE_DELAY_MS = 1_800;
 
-function getReviewCandidate(flow: PendingSaveState | null, selectedSourceUrl: string | null): AssetCandidate | null {
+const ASSET_TYPE_ICONS: Record<AssetCandidate["detectedType"], string> = {
+  image: "🖼️",
+  video: "🎬",
+  audio: "🎵",
+  link: "📄",
+  unknown: "📄",
+};
+
+function getReviewCandidate(flow: PendingSaveState | null, selectedAssets: AssetCandidate[]): AssetCandidate | null {
   if (!flow) return null;
   if (flow.mode === "single") return flow.request.candidate;
-  return flow.assets.find((asset) => asset.sourceUrl === selectedSourceUrl) || flow.assets[0] || null;
+  return selectedAssets.length === 1 ? selectedAssets[0] : null;
+}
+
+function pluralizeFiles(count: number): string {
+  return `${count} file${count === 1 ? "" : "s"}`;
+}
+
+function describeAsset(asset: AssetCandidate): string {
+  const type = asset.detectedType === "link" || asset.detectedType === "unknown" ? "file" : asset.detectedType;
+  const size = asset.width && asset.height ? `${asset.width} × ${asset.height}` : null;
+  return [type, size, getDomain(asset.sourceUrl)].filter(Boolean).join(" · ");
+}
+
+function AssetThumb({ asset }: { asset: AssetCandidate }) {
+  const [failed, setFailed] = useState(false);
+  if (asset.detectedType === "image" && !failed) {
+    return (
+      <img
+        alt=""
+        className="asset-thumb"
+        loading="lazy"
+        onError={() => setFailed(true)}
+        referrerPolicy="no-referrer"
+        src={asset.sourceUrl}
+      />
+    );
+  }
+  return (
+    <span aria-hidden="true" className="asset-thumb asset-thumb-icon">
+      {ASSET_TYPE_ICONS[asset.detectedType]}
+    </span>
+  );
 }
 
 export function SaveApp() {
   const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
   const [saveFlow, setSaveFlow] = useState<PendingSaveState | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>("/");
-  const [selectedSourceUrl, setSelectedSourceUrl] = useState<string | null>(null);
+  const [selectedUrls, setSelectedUrls] = useState<Set<string>>(() => new Set());
+  const [showSmallImages, setShowSmallImages] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+  const [batchResult, setBatchResult] = useState<(BatchSummary & { folderPath: string }) | null>(null);
   const [filenameDraft, setFilenameDraft] = useState("");
   const [status, setStatus] = useState<{ tone: StatusTone; text: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -58,28 +102,12 @@ export function SaveApp() {
         ? nextSaveFlow.destinationPath || settings.lastUsedFolderPath || "/"
         : nextSaveFlow?.request.destinationPath || settings.lastUsedFolderPath || "/",
     );
-    setSelectedSourceUrl(
-      nextSaveFlow?.mode === "scan"
-        ? nextSaveFlow.selectedSourceUrl || nextSaveFlow.assets[0]?.sourceUrl || null
-        : nextSaveFlow?.request.candidate.sourceUrl || null,
-    );
-    const nextCandidate =
-      nextSaveFlow?.mode === "scan"
-        ? nextSaveFlow.assets.find((asset) => asset.sourceUrl === nextSaveFlow.selectedSourceUrl)
-          || nextSaveFlow.assets[0]
-        : nextSaveFlow?.request.candidate;
-    const nextResolvedFilename = nextCandidate
-      ? deriveCandidateFilename(
-          nextCandidate,
-          nextSaveFlow?.mode === "single" ? nextSaveFlow.request.finalFilename : null,
-        )
-      : "";
     setFilenameDraft(
-      nextSaveFlow?.mode === "scan"
-        ? nextSaveFlow.selectedFilename || nextResolvedFilename
-        : nextSaveFlow?.mode === "single"
-          ? nextSaveFlow.request.finalFilename || nextSaveFlow.resolvedFilename || nextResolvedFilename
-          : nextResolvedFilename,
+      nextSaveFlow?.mode === "single"
+        ? nextSaveFlow.request.finalFilename
+          || nextSaveFlow.resolvedFilename
+          || deriveCandidateFilename(nextSaveFlow.request.candidate, nextSaveFlow.request.finalFilename)
+        : "",
     );
     setChangingFolder(
       Boolean(
@@ -99,7 +127,11 @@ export function SaveApp() {
       .finally(() => setLoaded(true));
   }, []);
 
-  const reviewCandidate = getReviewCandidate(saveFlow, selectedSourceUrl);
+  const scanAssets = saveFlow?.mode === "scan" ? saveFlow.assets : [];
+  const smallImageCount = scanAssets.filter(isSmallAsset).length;
+  const visibleAssets = showSmallImages ? scanAssets : scanAssets.filter((asset) => !isSmallAsset(asset));
+  const selectedAssets = scanAssets.filter((asset) => selectedUrls.has(asset.sourceUrl));
+  const reviewCandidate = getReviewCandidate(saveFlow, selectedAssets);
   const resolvedFilename = reviewCandidate ? deriveCandidateFilename(reviewCandidate) : null;
   const shouldPromptForRename = savePreferences?.promptForRename ?? false;
 
@@ -107,7 +139,28 @@ export function SaveApp() {
     if (saveFlow?.mode === "scan" && resolvedFilename) {
       setFilenameDraft(resolvedFilename);
     }
-  }, [resolvedFilename, saveFlow?.mode, selectedSourceUrl]);
+  }, [resolvedFilename, saveFlow?.mode]);
+
+  function toggleAsset(sourceUrl: string) {
+    setSelectedUrls((current) => {
+      const next = new Set(current);
+      if (next.has(sourceUrl)) next.delete(sourceUrl);
+      else next.add(sourceUrl);
+      return next;
+    });
+  }
+
+  function selectAllVisible() {
+    setSelectedUrls((current) => new Set([...current, ...visibleAssets.map((asset) => asset.sourceUrl)]));
+  }
+
+  function toggleSmallImages(show: boolean) {
+    setShowSmallImages(show);
+    if (!show) {
+      const smallUrls = new Set(scanAssets.filter(isSmallAsset).map((asset) => asset.sourceUrl));
+      setSelectedUrls((current) => new Set([...current].filter((url) => !smallUrls.has(url))));
+    }
+  }
 
   async function connect() {
     setConnecting(true);
@@ -149,7 +202,6 @@ export function SaveApp() {
       const result = await sendBackgroundMessage<SaveResult>({
         type: "SAVE_PENDING",
         destinationPath: selectedPath,
-        candidate: saveFlow.mode === "scan" ? reviewCandidate : undefined,
         finalFilename: filenameDraft.trim() || resolvedFilename,
       });
       if (result.ok) {
@@ -169,6 +221,52 @@ export function SaveApp() {
     }
   }
 
+  async function saveBatch(assets: AssetCandidate[], previous?: BatchSummary) {
+    if (!selectedPath || !assets.length) return;
+    const folderPath = selectedPath;
+    const finalFilename = assets.length === 1 && shouldPromptForRename ? filenameDraft.trim() || null : null;
+    const results: BatchItemResult[] = [];
+    setSaving(true);
+    setStatus(null);
+    for (const [index, asset] of assets.entries()) {
+      setBatchProgress({ current: index + 1, total: assets.length });
+      try {
+        const result = await sendBackgroundMessage<SaveResult>({
+          type: "SAVE_PENDING",
+          destinationPath: folderPath,
+          candidate: asset,
+          finalFilename,
+        });
+        results.push({ asset, result });
+      } catch (error) {
+        results.push({
+          asset,
+          result: {
+            ok: false,
+            status: "failed",
+            message: error instanceof Error ? error.message : "The save request failed.",
+          },
+        });
+      }
+    }
+    setBatchProgress(null);
+    setSaving(false);
+
+    const summary = summarizeBatch(results);
+    const merged: BatchSummary = previous
+      ? {
+          total: previous.total,
+          savedCount: previous.savedCount + summary.savedCount,
+          failures: summary.failures,
+          switchedToInstant: previous.switchedToInstant || summary.switchedToInstant,
+        }
+      : summary;
+    setBatchResult({ ...merged, folderPath });
+    if (!merged.failures.length && !merged.switchedToInstant) {
+      setTimeout(() => window.close(), SUCCESS_CLOSE_DELAY_MS);
+    }
+  }
+
   async function keepReviewing() {
     setKeepingReview(true);
     try {
@@ -183,6 +281,34 @@ export function SaveApp() {
     } finally {
       setKeepingReview(false);
     }
+  }
+
+  function renderSwitchedNotice(folderPath: string, showDone: boolean) {
+    return (
+      <div className="stack" style={{ width: "100%", textAlign: "left" }}>
+        {keptReviewing ? (
+          <StatusMessage tone="success">Got it. The review window will keep opening.</StatusMessage>
+        ) : (
+          <>
+            <StatusMessage tone="info">
+              From now on, saves go straight to <strong>{formatFolderPath(folderPath)}</strong> without
+              this window. You&apos;ll see a notice on the page when each one finishes.
+            </StatusMessage>
+            <div className="stack-sm" style={{ alignItems: "center" }}>
+              {showDone ? <Button onClick={() => window.close()}>Done</Button> : null}
+              <button
+                className="link-button"
+                disabled={keepingReview}
+                onClick={() => void keepReviewing()}
+                type="button"
+              >
+                {keepingReview ? "Saving…" : "Keep reviewing each save"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
   }
 
   if (!loaded) {
@@ -206,31 +332,56 @@ export function SaveApp() {
           <a href={getDropboxWebUrl(savedTo.folderPath)} rel="noopener noreferrer" target="_blank">
             Open in Dropbox
           </a>
-          {savedTo.switchedToInstant ? (
+          {savedTo.switchedToInstant ? renderSwitchedNotice(savedTo.folderPath, true) : null}
+        </section>
+      </div>
+    );
+  }
+
+  if (batchResult) {
+    const allSaved = !batchResult.failures.length;
+    return (
+      <div className="app-shell save-shell">
+        <section className="panel stack" style={{ alignItems: "center", textAlign: "center", padding: 32 }}>
+          <span className={`badge ${allSaved ? "success" : "error"}`} style={{ fontSize: 20, padding: "8px 14px" }}>
+            {allSaved ? "✓" : "!"}
+          </span>
+          <div className="section-title">
+            {allSaved
+              ? `Saved ${pluralizeFiles(batchResult.savedCount)} to ${formatFolderPath(batchResult.folderPath)}`
+              : `Saved ${batchResult.savedCount} of ${pluralizeFiles(batchResult.total)}`}
+          </div>
+          {!allSaved ? <div className="muted">Folder: {formatFolderPath(batchResult.folderPath)}</div> : null}
+          {batchResult.savedCount ? (
+            <a href={getDropboxWebUrl(batchResult.folderPath)} rel="noopener noreferrer" target="_blank">
+              Open in Dropbox
+            </a>
+          ) : null}
+          {!allSaved ? (
             <div className="stack" style={{ width: "100%", textAlign: "left" }}>
-              {keptReviewing ? (
-                <StatusMessage tone="success">Got it. The review window will keep opening.</StatusMessage>
-              ) : (
-                <>
-                  <StatusMessage tone="info">
-                    From now on, saves go straight to <strong>{formatFolderPath(savedTo.folderPath)}</strong> without
-                    this window. You&apos;ll see a notice on the page when each one finishes.
-                  </StatusMessage>
-                  <div className="stack-sm" style={{ alignItems: "center" }}>
-                    <Button onClick={() => window.close()}>Done</Button>
-                    <button
-                      className="link-button"
-                      disabled={keepingReview}
-                      onClick={() => void keepReviewing()}
-                      type="button"
-                    >
-                      {keepingReview ? "Saving…" : "Keep reviewing each save"}
-                    </button>
-                  </div>
-                </>
-              )}
+              <ul className="batch-failures">
+                {batchResult.failures.map((failure) => (
+                  <li key={failure.asset.sourceUrl} title={failure.asset.sourceUrl}>
+                    <strong className="break-anywhere">{failure.filename}</strong>
+                    <span className="muted">{failure.message}</span>
+                  </li>
+                ))}
+              </ul>
+              {saving ? <div className="muted">Keep this window open until saving finishes.</div> : null}
+              <div className="actions-wrap" style={{ justifyContent: "center" }}>
+                <Button
+                  loading={saving}
+                  onClick={() => void saveBatch(batchResult.failures.map((failure) => failure.asset), batchResult)}
+                >
+                  {batchProgress ? `Saving ${batchProgress.current} of ${batchProgress.total}…` : "Retry failed"}
+                </Button>
+                <Button disabled={saving} onClick={() => window.close()} variant="secondary">
+                  Done
+                </Button>
+              </div>
             </div>
           ) : null}
+          {batchResult.switchedToInstant ? renderSwitchedNotice(batchResult.folderPath, allSaved) : null}
         </section>
       </div>
     );
@@ -260,15 +411,29 @@ export function SaveApp() {
     );
   }
 
+  const folderRow = (
+    <div className="row row-between">
+      <div className="row" style={{ minWidth: 0 }}>
+        <span className="muted">Folder</span>
+        <span className="path-pill" title={selectedPath || "/"}>{formatFolderPath(selectedPath || "/")}</span>
+      </div>
+      {!changingFolder ? (
+        <Button disabled={saving} onClick={() => setChangingFolder(true)} variant="ghost">
+          Change
+        </Button>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className="app-shell save-shell">
       <section className="hero">
         <div className="eyebrow">
-          {saveFlow?.mode === "scan" ? "Pick a file from this page" : saveFlow ? "Review save" : "Default folder"}
+          {saveFlow?.mode === "scan" ? "Pick files from this page" : saveFlow ? "Review save" : "Default folder"}
         </div>
         <h2>
           {saveFlow?.mode === "scan"
-            ? "Choose a file from this page to save to Dropbox."
+            ? "Choose the files you want to save to Dropbox."
             : saveFlow
               ? "Check the name and folder, then save."
               : "Where should your saves go?"}
@@ -340,39 +505,106 @@ export function SaveApp() {
           <div className="row row-between">
             <div>
               <div className="section-title">Files on this page</div>
-              <div className="muted">Choose the file you want to save.</div>
+              <div className="muted">Tick the files you want to save.</div>
             </div>
             <span className="badge neutral">{saveFlow.assets.length} found</span>
           </div>
-          <div className="asset-list" style={{ marginTop: 0 }}>
-            {saveFlow.assets.map((asset) => {
-              const assetFilename = deriveCandidateFilename(asset);
-              const isSelected = selectedSourceUrl === asset.sourceUrl;
-              return (
-                <button
-                  aria-pressed={isSelected}
-                  className={`asset-row${isSelected ? " selected" : ""}`}
-                  key={asset.sourceUrl}
-                  onClick={() => setSelectedSourceUrl(asset.sourceUrl)}
-                  type="button"
-                >
-                  <div className="row row-between">
-                    <strong className="truncate">{assetFilename}</strong>
-                    {isSelected ? <span className="badge accent">Selected</span> : null}
-                  </div>
-                  <span className="muted truncate" title={asset.sourceUrl}>{asset.sourceUrl}</span>
-                  <span className="muted">
-                    {asset.detectedType}
-                    {asset.requiresAuthenticatedFetch ? " • authenticated fetch" : ""}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="asset-list-toolbar">
+            <button className="link-button" disabled={saving || !visibleAssets.length} onClick={selectAllVisible} type="button">
+              Select all
+            </button>
+            <button
+              className="link-button"
+              disabled={saving || !selectedUrls.size}
+              onClick={() => setSelectedUrls(new Set())}
+              type="button"
+            >
+              Clear
+            </button>
+            {smallImageCount ? (
+              <label className="asset-toolbar-toggle">
+                <input
+                  checked={showSmallImages}
+                  disabled={saving}
+                  onChange={(event) => toggleSmallImages(event.target.checked)}
+                  type="checkbox"
+                />
+                Show {smallImageCount} small image{smallImageCount === 1 ? "" : "s"}
+              </label>
+            ) : null}
           </div>
+          {visibleAssets.length ? (
+            <div className="asset-list" style={{ marginTop: 0 }}>
+              {visibleAssets.map((asset) => {
+                const isSelected = selectedUrls.has(asset.sourceUrl);
+                return (
+                  <label
+                    className={`asset-row${isSelected ? " selected" : ""}`}
+                    key={asset.sourceUrl}
+                    title={asset.sourceUrl}
+                  >
+                    <input
+                      checked={isSelected}
+                      disabled={saving}
+                      onChange={() => toggleAsset(asset.sourceUrl)}
+                      type="checkbox"
+                    />
+                    <AssetThumb asset={asset} />
+                    <span className="asset-row-text">
+                      <strong className="truncate">{deriveCandidateFilename(asset)}</strong>
+                      <span className="muted truncate">{describeAsset(asset)}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">
+              {scanAssets.length
+                ? "Only small images were found. Turn on “Show small images” to see them."
+                : "No files were found on this page."}
+            </div>
+          )}
         </section>
       ) : null}
 
-      {reviewCandidate ? (
+      {saveFlow?.mode === "scan" ? (
+        <section className="panel stack">
+          <div className="section-title">
+            {selectedAssets.length ? `${pluralizeFiles(selectedAssets.length)} selected` : "Select files to save"}
+          </div>
+          {shouldPromptForRename && selectedAssets.length === 1 ? (
+            <label className="field">
+              <span className="field-label">File name</span>
+              <input
+                className="text-input"
+                disabled={saving}
+                onChange={(event) => setFilenameDraft(event.target.value)}
+                value={filenameDraft}
+              />
+            </label>
+          ) : shouldPromptForRename && selectedAssets.length > 1 ? (
+            <div className="muted">Select a single file to rename it.</div>
+          ) : null}
+          {folderRow}
+          <Button
+            block
+            disabled={!selectedPath || !selectedAssets.length}
+            large
+            loading={saving}
+            onClick={() => void saveBatch(selectedAssets)}
+          >
+            {batchProgress
+              ? `Saving ${batchProgress.current} of ${batchProgress.total}…`
+              : selectedAssets.length
+                ? `Save ${pluralizeFiles(selectedAssets.length)}`
+                : "Save files"}
+          </Button>
+          {saving ? <div className="muted">Keep this window open until saving finishes.</div> : null}
+        </section>
+      ) : null}
+
+      {saveFlow?.mode === "single" && reviewCandidate ? (
         <section className="panel stack">
           <div className="row row-between">
             <div className="section-title">Ready to save</div>
@@ -398,17 +630,7 @@ export function SaveApp() {
           <div className="muted truncate" title={reviewCandidate.sourceUrl}>
             From {reviewCandidate.sourceUrl}
           </div>
-          <div className="row row-between">
-            <div className="row" style={{ minWidth: 0 }}>
-              <span className="muted">Folder</span>
-              <span className="path-pill" title={selectedPath || "/"}>{formatFolderPath(selectedPath || "/")}</span>
-            </div>
-            {!changingFolder ? (
-              <Button onClick={() => setChangingFolder(true)} variant="ghost">
-                Change
-              </Button>
-            ) : null}
-          </div>
+          {folderRow}
           <Button
             block
             disabled={!selectedPath}
@@ -421,13 +643,13 @@ export function SaveApp() {
         </section>
       ) : null}
 
-      {authState?.status === "signed_in" && (!saveFlow || changingFolder || !reviewCandidate) ? (
+      {authState?.status === "signed_in" && (!saveFlow || changingFolder) ? (
         <FolderPicker
           confirmLabel={saveFlow ? "Use this folder" : "Set as default folder"}
           confirming={!saveFlow && saving}
           defaultPath={defaultFolder}
           initialPath={selectedPath || "/"}
-          onCancel={saveFlow && reviewCandidate ? () => setChangingFolder(false) : undefined}
+          onCancel={saveFlow ? () => setChangingFolder(false) : undefined}
           onConfirm={(path) => {
             if (!saveFlow) {
               void saveDefaultFolder(path);
