@@ -14,7 +14,7 @@ Contributions and feedback are welcome. See [Contributing](#contributing) and [F
 - Right-click actions: **Save this image / video / audio to Dropbox** and **Save the file this link opens to Dropbox**
 - **Find files on this page**: lists every image, video, audio file, and downloadable link on the current page so you can pick one
 - Review window before each save: see the filename, rename it, and change the destination folder
-- Dropbox folder browser with inline folder creation and a remembered default folder
+- Dropbox folder browser with clickable breadcrumbs, an "Up" row, inline **New folder** creation, and a **Default** badge on the current default folder
 - Per-user save preferences, reachable from the popup, the toolbar icon's right-click menu, the settings page, and every review window
 - Save feedback: an in-page toast (saving, saved with an **Open in Dropbox** link, or failed with the reason) plus a toolbar badge
 - Hybrid upload strategy:
@@ -84,7 +84,11 @@ Then in Chrome:
 - **Right-click a link** that points to a file (PDF, ZIP, image, or a link with a `download` attribute) and choose **Save the file this link opens to Dropbox**. Links to ordinary web pages are rejected with an error toast.
   - When an image is wrapped in a link, both items appear: the image item saves the picture you see, the link item saves whatever the link points to (often a larger original or a different file).
 - **Find files on a page**: right-click an empty spot and choose **Find files on this page to save to Dropbox**, or open the toolbar popup and click **Scan this page**.
-- **Change the default folder**: click **Change** next to the default folder in the popup or on the settings page. You can also change the folder inside any review window.
+- **Change the default folder**: click **Change** next to the default folder in the popup or on the settings page. A window opens showing your current default:
+  - Open folders by clicking them, and go back with the breadcrumbs (for example **Dropbox › Photos › 2026**) or the **Up to …** row.
+  - Click **+ New folder** to create a folder inside the one you're viewing. Web Saver opens it straight away.
+  - Click **Set as default folder** to use the folder you're viewing. A confirmation shows the new default, with **Done**, **Choose another folder**, and **Open in Dropbox**.
+- **Pick a folder for a single save**: in the review window, click **Change** next to the folder. The same browser opens, and **Use this folder** applies your choice to that save only. **Cancel** keeps the original folder.
 - While a save runs, a toast in the bottom-right corner of the page shows progress, then the result. The toolbar badge shows `…`, then `OK` or `ERR`. Browser-internal pages can't show toasts, so only the badge appears there.
 - Closing a review window cancels that save.
 
