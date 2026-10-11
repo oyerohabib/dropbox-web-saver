@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { RecentSaves } from "../../components/RecentSaves";
+import { Button, StatusMessage } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
 import type {
   DropboxAuthState,
@@ -49,7 +50,7 @@ export function PopupApp() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell popup">
       <section className="hero">
         <div className="eyebrow">Web Saver for Dropbox</div>
         <h2>Find files on the page, review the destination, and save them into Dropbox.</h2>
@@ -69,13 +70,13 @@ export function PopupApp() {
             </div>
           </div>
         </div>
-        <button className="primary-button" onClick={() => void startScanFlow()} type="button">
-          {loadingScan ? "Opening scan..." : "Scan Page Assets"}
-        </button>
+        <Button block loading={loadingScan} onClick={() => void startScanFlow()}>
+          {loadingScan ? "Scanning page…" : "Scan Page Assets"}
+        </Button>
         <div className="muted">
           Default folder: {settings?.lastUsedFolderPath || "No default folder chosen yet"}
         </div>
-        {message ? <div className="callout info">{message}</div> : null}
+        {message ? <StatusMessage tone="error">{message}</StatusMessage> : null}
       </section>
 
       <section className="panel">
