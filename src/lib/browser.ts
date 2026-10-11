@@ -29,8 +29,12 @@ export async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   return tab;
 }
 
+export function openSettingsTab(section: "setup" | "preferences" | "recent-saves") {
+  return chrome.tabs.create({ url: chrome.runtime.getURL(`options.html#${section}`) });
+}
+
 export function openPreferencesTab() {
-  return chrome.tabs.create({ url: chrome.runtime.getURL("options.html#preferences") });
+  return openSettingsTab("preferences");
 }
 
 export class RestrictedPageError extends Error {
