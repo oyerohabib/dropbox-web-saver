@@ -19,17 +19,29 @@ Private Chromium extension (Chrome, Brave, Edge) for saving images, videos, audi
 
 ## Dropbox app setup
 
-1. Create an app in the [Dropbox App Console](https://www.dropbox.com/developers/apps) with **Scoped access** and **Full Dropbox** access.
-2. On the **Permissions** tab, enable only these scopes and click Submit:
+Each user connects through a Dropbox app they create in their own account, so no shared app or server is involved. The settings page opens automatically on first install and shows a step-by-step setup guide with links, copy buttons, and progress checkmarks. The popup and the review window link to the same guide until Dropbox is connected.
+
+For reference, the steps are:
+
+1. **Create your Dropbox app** at [dropbox.com/developers/apps/create](https://www.dropbox.com/developers/apps/create): choose **Scoped access**, **Full Dropbox**, and any unique name.
+2. **Turn on permissions**: on the app's **Permissions** tab, tick these four scopes and click **Submit**:
    - `account_info.read`
    - `files.metadata.read`
    - `files.metadata.write`
    - `files.content.write`
-3. Build and load the extension (next section). The settings page opens automatically on first install; click **Copy** next to the **Redirect URI**. It looks like `https://<extension-id>.chromiumapp.org/dropbox`.
-4. In the Dropbox App Console **Settings** tab, add that exact URI under **OAuth 2 Redirect URIs**.
-5. Copy the Dropbox **App key**, paste it into the extension settings page, click **Save App Key**, then **Connect Dropbox**.
+3. **Add the redirect URI**: copy it from the setup guide (it looks like `https://<extension-id>.chromiumapp.org/dropbox`) and add it under **OAuth 2 → Redirect URIs** on the app's **Settings** tab.
+4. **Paste your App key** from the app's **Settings** tab into the guide. Never paste the App secret; sign-in uses PKCE and doesn't need it.
+5. **Connect Dropbox** and click **Allow** in the Dropbox window.
+
+If connecting fails, the guide points to the step that most likely needs fixing (for example, a redirect URI mismatch points back to step 3).
 
 The extension ID is stable as long as you load it from the same folder. Loading it from a new folder gives a new ID and a new redirect URI.
+
+## Privacy
+
+The app key, Dropbox tokens, preferences, and recent saves are stored only in the browser's extension storage. There is no Web Saver server, no analytics, and nothing is sent to the developer. The extension only contacts Dropbox and the website hosting the file you choose to save.
+
+The full policy ships inside the extension as `privacy.html`, linked from the settings page, popup, and review window. [PRIVACY.md](PRIVACY.md) has the same text for public hosting, which the Chrome Web Store requires. Keep `PRIVACY.md` and `src/entrypoints/privacy/App.tsx` in sync when either changes, and fill in the contact line in both before publishing.
 
 ## Build and install
 
