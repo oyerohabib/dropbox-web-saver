@@ -540,6 +540,171 @@ a:hover,
   color: #a3241b;
 }
 
+.callout.warning {
+  background: rgba(249, 171, 0, 0.14);
+  color: #7a4b00;
+}
+
+.privacy-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid rgba(30, 142, 62, 0.25);
+  border-radius: var(--radius-sm);
+  background: var(--success-soft);
+  color: #13612a;
+  font-size: 13px;
+}
+
+.privacy-banner strong {
+  font-size: 14px;
+}
+
+.privacy-banner-icon {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+/* Setup wizard */
+
+.progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 200ms ease;
+}
+
+.stepper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.step.current {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.step-marker {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.step.current .step-marker {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.step.done .step-marker {
+  border-color: var(--success);
+  background: var(--success);
+  color: #ffffff;
+}
+
+.step-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.step.done .step-title {
+  color: var(--muted);
+}
+
+.step-body {
+  padding: 0 var(--space-4) var(--space-4) calc(var(--space-3) + 26px + var(--space-3));
+}
+
+.step-body p {
+  margin: 0;
+}
+
+.step-instructions {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.step-instructions li + li {
+  margin-top: 2px;
+}
+
+.scope-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scope-list code,
+.step-body p code {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.step-check {
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.step-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+a.primary-button:hover,
+a.secondary-button:hover,
+a.ghost-button:hover {
+  text-decoration: none;
+}
+
+a.secondary-button {
+  align-self: flex-start;
+}
+
 .callout-icon {
   flex: none;
   font-weight: 700;

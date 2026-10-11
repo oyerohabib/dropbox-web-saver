@@ -44,11 +44,12 @@ export function Button({
   );
 }
 
-export type StatusTone = "info" | "success" | "error";
+export type StatusTone = "info" | "success" | "warning" | "error";
 
 const STATUS_ICONS: Record<StatusTone, string> = {
   info: "i",
   success: "✓",
+  warning: "!",
   error: "!",
 };
 
