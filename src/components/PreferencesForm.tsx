@@ -51,7 +51,7 @@ export function PreferencesForm({ variant, onChooseFolder, onReady }: Preference
     try {
       const next = await sendBackgroundMessage<ExtensionSettings>({
         type: "SAVE_SETTINGS",
-        settings: { savePreferences },
+        settings: { savePreferences: patch },
       });
       setSettings(next);
       setSavedAt(Date.now());
@@ -73,7 +73,9 @@ export function PreferencesForm({ variant, onChooseFolder, onReady }: Preference
         description={
           isFull
             ? saveMode === "reviewed"
-              ? "A small window opens so you can check the name and folder before saving."
+              ? settings.saveModeSetByUser
+                ? "A small window opens so you can check the name and folder before saving."
+                : "Your first save opens a small window so you can pick a folder. After that, saves happen instantly."
               : "Right-click → save uploads immediately. The window only opens if a folder or name is still needed."
             : undefined
         }
