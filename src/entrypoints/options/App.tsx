@@ -222,6 +222,10 @@ export function OptionsApp() {
       </div>
 
       <RecentSaves items={recentSaves} />
+
+      <footer className="muted">
+        Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc.
+      </footer>
     </div>
   );
 }

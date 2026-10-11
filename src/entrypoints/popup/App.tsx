@@ -51,7 +51,7 @@ export function PopupApp() {
   return (
     <div className="app-shell">
       <section className="hero">
-        <div className="eyebrow">Dropbox Web Saver</div>
+        <div className="eyebrow">Web Saver for Dropbox</div>
         <h2>Find files on the page, review the destination, and save them into Dropbox.</h2>
         <p>
           {authState?.status === "signed_in"

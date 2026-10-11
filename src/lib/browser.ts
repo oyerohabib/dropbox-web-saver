@@ -31,7 +31,7 @@ export async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
 
 export class RestrictedPageError extends Error {
   constructor() {
-    super("Dropbox Saver can't run on this page. Try a regular website tab.");
+    super("Web Saver can't run on this page. Try a regular website tab.");
   }
 }
 
