@@ -49,6 +49,7 @@ export interface SaveResult {
   filename?: string;
   errorCode?: SaveErrorCode;
   message: string;
+  switchedToInstant?: boolean;
 }
 
 export type SaveErrorCode =
@@ -106,6 +107,7 @@ export interface ExtensionSettings {
   appKey: string | null;
   lastUsedFolderPath: string | null;
   savePreferences: SavePreferences;
+  saveModeSetByUser: boolean;
 }
 
 export interface SetupProgress {
@@ -118,6 +120,7 @@ export interface ExtensionSettingsPatch {
   appKey?: string | null;
   lastUsedFolderPath?: string | null;
   savePreferences?: Partial<SavePreferences>;
+  saveModeSetByUser?: boolean;
 }
 
 export interface PendingSingleSaveState {

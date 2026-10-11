@@ -33,6 +33,7 @@ const defaultSettings: ExtensionSettings = {
     promptForRename: false,
     folderBehavior: "remember_last",
   },
+  saveModeSetByUser: false,
 };
 
 export async function getSettings(): Promise<ExtensionSettings> {
