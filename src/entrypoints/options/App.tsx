@@ -18,6 +18,9 @@ export function OptionsApp() {
   const [appKeyDraft, setAppKeyDraft] = useState("");
   const [message, setMessage] = useState<{ tone: StatusTone; text: string } | null>(null);
   const [busyAction, setBusyAction] = useState<BusyAction | null>(null);
+  const [clearingHistory, setClearingHistory] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [preferencesReady, setPreferencesReady] = useState(false);
 
   async function load() {
     const [nextAuthState, nextSettings, nextRecentSaves] = await Promise.all([
@@ -32,11 +35,13 @@ export function OptionsApp() {
   }
 
   useEffect(() => {
-    void load().then(() => {
-      const target = window.location.hash ? document.getElementById(window.location.hash.slice(1)) : null;
-      target?.scrollIntoView({ block: "start" });
-    });
+    void load().then(() => setLoaded(true));
   }, []);
+
+  useEffect(() => {
+    if (!loaded || !preferencesReady || !window.location.hash) return;
+    document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: "start" });
+  }, [loaded, preferencesReady]);
 
   async function runAction(action: BusyAction, task: () => Promise<unknown>, success: string, failure: string) {
     setBusyAction(action);
@@ -82,6 +87,19 @@ export function OptionsApp() {
     );
   }
 
+  async function clearHistory() {
+    if (!window.confirm("Clear your recent saves history? Files already in Dropbox are not affected.")) return;
+    setClearingHistory(true);
+    try {
+      await sendBackgroundMessage<{ ok: true }>({ type: "CLEAR_RECENT_SAVES" });
+      setRecentSaves([]);
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Could not clear history." });
+    } finally {
+      setClearingHistory(false);
+    }
+  }
+
   const signedIn = authState?.status === "signed_in";
 
   return (
@@ -114,6 +132,7 @@ export function OptionsApp() {
         </div>
         <PreferencesForm
           onChooseFolder={() => void sendBackgroundMessage({ type: "OPEN_FOLDER_SETTINGS" })}
+          onReady={() => setPreferencesReady(true)}
           variant="full"
         />
       </section>
@@ -129,14 +148,15 @@ export function OptionsApp() {
               </span>
             ) : null}
           </div>
-          <div className="muted break-anywhere">
+          {!authState ? <Skeleton rows={2} /> : null}
+          <div className="muted break-anywhere" hidden={!authState}>
             {signedIn
               ? `Signed in${authState?.accountEmail ? ` as ${authState.accountEmail}` : ""}.`
               : authState?.status === "missing_app_key"
                 ? "Add your Dropbox app key first, then connect."
                 : "Connect your Dropbox account to start saving."}
           </div>
-          <div className="actions-wrap">
+          <div className="actions-wrap" hidden={!authState}>
             {signedIn ? (
               <Button loading={busyAction === "disconnect"} onClick={() => void disconnect()} variant="ghost">
                 Disconnect
@@ -180,7 +200,11 @@ export function OptionsApp() {
       </div>
 
       <div id="recent-saves" style={{ scrollMarginTop: 16 }}>
-        <RecentSaves items={recentSaves} />
+        <RecentSaves
+          clearing={clearingHistory}
+          items={recentSaves}
+          onClear={() => void clearHistory()}
+        />
       </div>
 
       <footer className="muted page-footer">
