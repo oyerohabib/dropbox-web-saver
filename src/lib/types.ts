@@ -1,0 +1,192 @@
+export type AssetType = "image" | "video" | "audio" | "link" | "unknown";
+export type AssetTriggerKind =
+  | "image"
+  | "video"
+  | "audio"
+  | "linked_file"
+  | "scan";
+export type SaveMode = "reviewed" | "one_click";
+export type FolderBehavior = "remember_last" | "always_ask";
+
+export interface SavePreferences {
+  saveMode: SaveMode;
+  promptForRename: boolean;
+  folderBehavior: FolderBehavior;
+}
+
+export interface AssetCandidate {
+  sourceUrl: string;
+  pageUrl: string;
+  detectedType: AssetType;
+  suggestedFilename: string | null;
+  preferredFilename?: string | null;
+  elementTextHint?: string | null;
+  contentDispositionFilename?: string | null;
+  requiresAuthenticatedFetch: boolean;
+  referrer?: string;
+  mimeType?: string | null;
+  triggerKind?: AssetTriggerKind;
+}
+
+export interface SaveRequest {
+  candidate: AssetCandidate;
+  destinationPath?: string | null;
+  tabId?: number;
+  forceFolderPicker?: boolean;
+  finalFilename?: string | null;
+}
+
+export interface SaveResult {
+  ok: boolean;
+  status:
+    | "success"
+    | "needs_auth"
+    | "needs_folder"
+    | "unsupported"
+    | "failed";
+  method?: "url_import" | "direct_upload";
+  path?: string;
+  filename?: string;
+  errorCode?: SaveErrorCode;
+  message: string;
+}
+
+export type SaveErrorCode =
+  | "APP_KEY_MISSING"
+  | "AUTH_REQUIRED"
+  | "TOKEN_EXPIRED"
+  | "UNSUPPORTED_TARGET"
+  | "FOLDER_REQUIRED"
+  | "FOLDER_NOT_FOUND"
+  | "URL_IMPORT_FAILED"
+  | "ASSET_FETCH_FAILED"
+  | "UPLOAD_FAILED"
+  | "UNKNOWN";
+
+export interface DropboxTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  accountEmail?: string;
+}
+
+export interface DropboxAuthState {
+  status: "missing_app_key" | "signed_out" | "signed_in";
+  appKey: string | null;
+  redirectUri: string;
+  accountEmail?: string;
+  expiresAt?: number;
+}
+
+export interface FolderEntry {
+  id: string;
+  name: string;
+  pathLower: string;
+  pathDisplay: string;
+}
+
+export interface FolderSelectionState {
+  currentPath: string;
+  lastUsedFolderPath: string | null;
+  entries: FolderEntry[];
+}
+
+export interface RecentSaveRecord {
+  id: string;
+  filename: string;
+  sourceDomain: string;
+  destinationPath: string;
+  success: boolean;
+  timestamp: number;
+  method?: "url_import" | "direct_upload";
+  message: string;
+}
+
+export interface ExtensionSettings {
+  appKey: string | null;
+  lastUsedFolderPath: string | null;
+  savePreferences: SavePreferences;
+}
+
+export interface ExtensionSettingsPatch {
+  appKey?: string | null;
+  lastUsedFolderPath?: string | null;
+  savePreferences?: Partial<SavePreferences>;
+}
+
+export interface PendingSingleSaveState {
+  mode: "single";
+  request: SaveRequest;
+  resolvedFilename: string;
+  createdAt: number;
+  reason: "auth_required" | "folder_required" | "manual_override" | "context_review";
+}
+
+export interface PendingScanState {
+  mode: "scan";
+  assets: AssetCandidate[];
+  tabId?: number;
+  destinationPath?: string | null;
+  selectedSourceUrl?: string | null;
+  selectedFilename?: string | null;
+  createdAt: number;
+  reason: "scan";
+}
+
+export interface AssetFetchPayload {
+  ok: boolean;
+  status: number;
+  contentType: string | null;
+  finalUrl?: string;
+  contentDispositionFilename?: string | null;
+  arrayBuffer?: ArrayBuffer;
+  error?: string;
+}
+
+export type PendingSaveState = PendingSingleSaveState | PendingScanState;
+
+export type BackgroundMessage =
+  | { type: "GET_AUTH_STATE" }
+  | { type: "CONNECT_DROPBOX" }
+  | { type: "DISCONNECT_DROPBOX" }
+  | { type: "GET_SETTINGS" }
+  | { type: "SAVE_SETTINGS"; settings: ExtensionSettingsPatch }
+  | { type: "SET_LAST_USED_FOLDER"; path: string | null }
+  | { type: "LIST_FOLDERS"; path: string }
+  | { type: "CREATE_FOLDER"; parentPath: string; name: string }
+  | { type: "GET_PENDING_SAVE" }
+  | { type: "CLEAR_PENDING_SAVE" }
+  | {
+      type: "SAVE_PENDING";
+      destinationPath: string;
+      candidate?: AssetCandidate;
+      finalFilename?: string | null;
+    }
+  | { type: "SAVE_CANDIDATE"; request: SaveRequest }
+  | { type: "GET_RECENT_SAVES" }
+  | { type: "SCAN_ACTIVE_TAB_ASSETS" }
+  | { type: "START_SCAN_FLOW" };
+
+export type ContentScriptMessage =
+  | { type: "SCAN_PAGE_ASSETS" }
+  | {
+      type: "DESCRIBE_ASSET_TARGET";
+      url: string;
+      triggerKind?: AssetTriggerKind;
+    }
+  | {
+      type: "FETCH_ASSET_BYTES";
+      url: string;
+      referrer?: string;
+    };
+
+export interface ScanPageAssetsResponse {
+  assets: AssetCandidate[];
+}
+
+export interface AssetDescriptionResponse {
+  preferredFilename?: string | null;
+  elementTextHint?: string | null;
+  mimeType?: string | null;
+  hasDownloadAttribute?: boolean;
+}
