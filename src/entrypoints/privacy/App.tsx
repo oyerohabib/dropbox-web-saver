@@ -130,12 +130,16 @@ export function PrivacyApp() {
           <li><strong>contextMenus</strong>: add the &quot;Save … to Dropbox&quot; items to the right-click menu.</li>
           <li><strong>identity</strong>: open Dropbox&apos;s own sign-in window and receive the result securely.</li>
           <li>
-            <strong>scripting</strong> and <strong>activeTab</strong>: find files on the page when you scan it, fetch a
-            file using your login on that site, and show the saving notice on the page.
+            <strong>scripting</strong> and <strong>activeTab</strong>: only after you right-click &quot;Save … to
+            Dropbox&quot; or click &quot;Scan this page&quot;, access the tab you are on to find files on the page,
+            fetch a file using your login on that site, and show the saving notice. Access ends when you leave or
+            close the tab.
           </li>
           <li>
-            <strong>Access to http and https sites</strong>: save files from whichever site you are on. The page helper
-            stays idle until you save or scan; it does not read or send page content on its own.
+            <strong>Access to a specific site (optional)</strong>: Web Saver has no standing access to websites. If
+            Dropbox can&apos;t fetch a file by itself, the extension asks you to allow that one site so it can download
+            the file from your browser. You can decline, and you can remove access at any time from the
+            extension&apos;s details page in Chrome.
           </li>
         </ul>
       </Section>

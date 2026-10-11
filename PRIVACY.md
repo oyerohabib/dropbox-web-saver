@@ -44,8 +44,8 @@ Sending feedback is always your choice, and you always send it yourself:
 - **storage**: keep your app key, tokens, preferences, and recent saves on your computer.
 - **contextMenus**: add the "Save … to Dropbox" items to the right-click menu.
 - **identity**: open Dropbox's own sign-in window and receive the result securely.
-- **scripting** and **activeTab**: find files on the page when you scan it, fetch a file using your login on that site, and show the saving notice on the page.
-- **Access to http and https sites**: save files from whichever site you are on. The page helper stays idle until you save or scan; it does not read or send page content on its own.
+- **scripting** and **activeTab**: only after you right-click "Save … to Dropbox" or click "Scan this page", access the tab you are on to find files on the page, fetch a file using your login on that site, and show the saving notice. Access ends when you leave or close the tab.
+- **Access to a specific site (optional)**: Web Saver has no standing access to websites. If Dropbox can't fetch a file by itself, the extension asks you to allow that one site so it can download the file from your browser. You can decline, and you can remove access at any time from the extension's details page in Chrome.
 
 ## Why you create your own Dropbox app
 
