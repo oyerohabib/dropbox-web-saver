@@ -8,7 +8,7 @@ import type {
   SaveResult,
 } from "./types";
 
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   settings: "settings",
   tokens: "dropboxTokens",
   recentSaves: "recentSaves",

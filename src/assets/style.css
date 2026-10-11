@@ -225,6 +225,10 @@ a:hover,
   font-size: 13px;
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -312,6 +316,7 @@ a:hover,
   padding: 0;
   background: transparent;
   color: var(--muted);
+  font-size: 18px;
 }
 
 .icon-button:hover:not(:disabled) {
