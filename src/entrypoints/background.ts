@@ -381,18 +381,23 @@ export default defineBackground(() => {
 
       const candidate = buildCandidateFromContext(info, triggerKind);
       if (!candidate) return;
-      const enrichedCandidate = await enrichCandidate(candidate, tab?.id);
+      let enrichedCandidate = await enrichCandidate(candidate, tab?.id);
 
-      if (
-        triggerKind === "linked_file" &&
-        enrichedCandidate.detectedType === "unknown" &&
-        !isLikelyDirectAssetUrl(enrichedCandidate.sourceUrl) &&
-        !enrichedCandidate.preferredFilename
-      ) {
-        await reportUnsupportedTarget(
-          "This link does not appear to point to a downloadable file or media asset.",
-        );
-        return;
+      if (triggerKind === "linked_file" && enrichedCandidate.detectedType === "unknown") {
+        const servesFile =
+          Boolean(enrichedCandidate.contentDispositionFilename)
+          || Boolean(enrichedCandidate.mimeType && !/^text\/html|^application\/xhtml/.test(enrichedCandidate.mimeType));
+        if (
+          !servesFile &&
+          !isLikelyDirectAssetUrl(enrichedCandidate.sourceUrl) &&
+          !enrichedCandidate.preferredFilename
+        ) {
+          await reportUnsupportedTarget(
+            "This link does not appear to point to a downloadable file or media asset.",
+          );
+          return;
+        }
+        enrichedCandidate = { ...enrichedCandidate, detectedType: "link" };
       }
 
       const settings = await getSettings();
