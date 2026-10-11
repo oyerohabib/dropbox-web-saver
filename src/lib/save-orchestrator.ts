@@ -1,5 +1,5 @@
 import { appendRecentSave, setLastResult, setPendingSave, updateSettings } from "./storage";
-import { createFolder, getCurrentAccount, saveUrlToDropbox, uploadFileToDropbox } from "./dropbox-api";
+import { createFolder, saveUrlToDropbox, uploadFileToDropbox } from "./dropbox-api";
 import { getAuthState } from "./dropbox-auth";
 import type {
   AssetCandidate,
@@ -87,8 +87,6 @@ export async function saveAsset(
       await setLastResult(result);
       return result;
     }
-
-    await getCurrentAccount();
 
     const destinationPath = request.destinationPath;
     if (!destinationPath) {
