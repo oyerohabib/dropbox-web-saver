@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
 import { Button, CopyField, Skeleton, StatusMessage, type StatusTone } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
@@ -6,17 +7,15 @@ import type {
   DropboxAuthState,
   ExtensionSettings,
   RecentSaveRecord,
-  SavePreferences,
 } from "../../lib/types";
 
-type BusyAction = "appKey" | "connect" | "disconnect" | "preferences";
+type BusyAction = "appKey" | "connect" | "disconnect";
 
 export function OptionsApp() {
   const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
   const [settings, setSettings] = useState<ExtensionSettings | null>(null);
   const [recentSaves, setRecentSaves] = useState<RecentSaveRecord[]>([]);
   const [appKeyDraft, setAppKeyDraft] = useState("");
-  const [preferencesDraft, setPreferencesDraft] = useState<SavePreferences | null>(null);
   const [message, setMessage] = useState<{ tone: StatusTone; text: string } | null>(null);
   const [busyAction, setBusyAction] = useState<BusyAction | null>(null);
 
@@ -29,12 +28,14 @@ export function OptionsApp() {
     setAuthState(nextAuthState);
     setSettings(nextSettings);
     setAppKeyDraft(nextSettings.appKey || "");
-    setPreferencesDraft(nextSettings.savePreferences);
     setRecentSaves(nextRecentSaves);
   }
 
   useEffect(() => {
-    void load();
+    void load().then(() => {
+      const target = window.location.hash ? document.getElementById(window.location.hash.slice(1)) : null;
+      target?.scrollIntoView({ block: "start" });
+    });
   }, []);
 
   async function runAction(action: BusyAction, task: () => Promise<unknown>, success: string, failure: string) {
@@ -81,36 +82,81 @@ export function OptionsApp() {
     );
   }
 
-  function savePreferences() {
-    if (!preferencesDraft) return;
-    return runAction(
-      "preferences",
-      () => sendBackgroundMessage<ExtensionSettings>({
-        type: "SAVE_SETTINGS",
-        settings: { savePreferences: preferencesDraft },
-      }),
-      "Save preferences updated.",
-      "Could not save your preferences.",
-    );
-  }
+  const signedIn = authState?.status === "signed_in";
 
   return (
     <div className="app-shell page">
       <section className="hero">
-        <div className="eyebrow">Settings</div>
-        <h1>Configure the Dropbox app and connection once, then save from anywhere.</h1>
-        <p>
-          Add the redirect URI below to your Dropbox app console before you connect this extension.
-        </p>
+        <div className="row" style={{ gap: 12 }}>
+          <img alt="" src="/icons/48.png" style={{ width: 40, height: 40, borderRadius: 10 }} />
+          <div>
+            <div className="eyebrow">Web Saver for Dropbox</div>
+            <h1>Settings</h1>
+          </div>
+        </div>
+        <p>Choose how saving works, connect your Dropbox account, and review recent saves.</p>
       </section>
+
+      <nav aria-label="Settings sections" className="page-nav">
+        <a href="#preferences">Save preferences</a>
+        <a href="#connection">Dropbox connection</a>
+        <a href="#recent-saves">Recent saves</a>
+      </nav>
 
       {message ? <StatusMessage tone={message.tone}>{message.text}</StatusMessage> : null}
 
-      <div className="options-grid">
+      <section className="panel" id="preferences">
+        <div className="panel-header">
+          <div>
+            <div className="section-title">Save preferences</div>
+            <div className="muted">Changes save automatically.</div>
+          </div>
+        </div>
+        <PreferencesForm
+          onChooseFolder={() => void sendBackgroundMessage({ type: "OPEN_FOLDER_SETTINGS" })}
+          variant="full"
+        />
+      </section>
+
+      <div className="options-grid" id="connection">
         <section className="panel stack">
-          <div className="section-title">Dropbox App</div>
-          <label className="stack">
-            <span className="muted">App key</span>
+          <div className="row row-between">
+            <div className="section-title">Dropbox connection</div>
+            {authState ? (
+              <span className={`badge ${signedIn ? "success" : "neutral"}`}>
+                <span className="status-dot" />
+                {signedIn ? "Connected" : "Not connected"}
+              </span>
+            ) : null}
+          </div>
+          <div className="muted break-anywhere">
+            {signedIn
+              ? `Signed in${authState?.accountEmail ? ` as ${authState.accountEmail}` : ""}.`
+              : authState?.status === "missing_app_key"
+                ? "Add your Dropbox app key first, then connect."
+                : "Connect your Dropbox account to start saving."}
+          </div>
+          <div className="actions-wrap">
+            {signedIn ? (
+              <Button loading={busyAction === "disconnect"} onClick={() => void disconnect()} variant="ghost">
+                Disconnect
+              </Button>
+            ) : (
+              <Button
+                disabled={!settings?.appKey}
+                loading={busyAction === "connect"}
+                onClick={() => void connect()}
+              >
+                Connect Dropbox
+              </Button>
+            )}
+          </div>
+        </section>
+
+        <section className="panel stack" id="dropbox-app">
+          <div className="section-title">Dropbox app</div>
+          <label className="field">
+            <span className="field-label">App key</span>
             <input
               className="text-input"
               onChange={(event) => setAppKeyDraft(event.target.value)}
@@ -118,7 +164,11 @@ export function OptionsApp() {
               value={appKeyDraft}
             />
           </label>
-          <Button loading={busyAction === "appKey"} onClick={() => void saveAppKey()}>
+          <Button
+            disabled={appKeyDraft.trim() === (settings?.appKey ?? "")}
+            loading={busyAction === "appKey"}
+            onClick={() => void saveAppKey()}
+          >
             Save App Key
           </Button>
           <div className="field">
@@ -127,108 +177,11 @@ export function OptionsApp() {
             <span className="muted">Add this exact URI under OAuth 2 → Redirect URIs in your Dropbox app console.</span>
           </div>
         </section>
-
-        <section className="panel stack">
-          <div className="section-title">Connection</div>
-          <div className="muted">
-            Status: {authState?.status === "signed_in" ? "Connected" : authState?.status || "Loading"}
-          </div>
-          <div className="muted">
-            Account: {authState?.accountEmail || "Not connected"}
-          </div>
-          <div className="muted">
-            Last folder: {settings?.lastUsedFolderPath || "No folder selected yet"}
-          </div>
-          <div className="actions-wrap">
-            <Button
-              disabled={!settings?.appKey}
-              loading={busyAction === "connect"}
-              onClick={() => void connect()}
-            >
-              Connect Dropbox
-            </Button>
-            <Button loading={busyAction === "disconnect"} onClick={() => void disconnect()} variant="secondary">
-              Disconnect
-            </Button>
-            <Button
-              onClick={() => void sendBackgroundMessage({ type: "OPEN_FOLDER_SETTINGS" })}
-              variant="ghost"
-            >
-              Choose Default Folder
-            </Button>
-          </div>
-        </section>
-
-        <section className="panel stack">
-          <div className="section-title">Save Preferences</div>
-          <label className="stack">
-            <span className="muted">Save mode</span>
-            <select
-              className="select-input"
-              onChange={(event) =>
-                setPreferencesDraft((current) =>
-                  current
-                    ? {
-                        ...current,
-                        saveMode: event.target.value as SavePreferences["saveMode"],
-                      }
-                    : current,
-                )}
-              value={preferencesDraft?.saveMode || "reviewed"}
-            >
-              <option value="reviewed">Reviewed save</option>
-              <option value="one_click">One-click save</option>
-            </select>
-          </label>
-          <label className="stack">
-            <span className="muted">Folder choice</span>
-            <select
-              className="select-input"
-              onChange={(event) =>
-                setPreferencesDraft((current) =>
-                  current
-                    ? {
-                        ...current,
-                        folderBehavior: event.target.value as SavePreferences["folderBehavior"],
-                      }
-                    : current,
-                )}
-              value={preferencesDraft?.folderBehavior || "remember_last"}
-            >
-              <option value="remember_last">Remember last folder</option>
-              <option value="always_ask">Ask every time</option>
-            </select>
-          </label>
-          <label className="row">
-            <input
-              checked={preferencesDraft?.promptForRename || false}
-              onChange={(event) =>
-                setPreferencesDraft((current) =>
-                  current
-                    ? {
-                        ...current,
-                        promptForRename: event.target.checked,
-                      }
-                    : current,
-                )}
-              type="checkbox"
-            />
-            <span className="muted">Prompt me to rename assets before saving</span>
-          </label>
-          <div className="muted">
-            Reviewed save is safer. One-click save skips the review window unless a folder choice or rename prompt still requires your input.
-          </div>
-          <Button
-            disabled={!preferencesDraft}
-            loading={busyAction === "preferences"}
-            onClick={() => void savePreferences()}
-          >
-            Save Preferences
-          </Button>
-        </section>
       </div>
 
-      <RecentSaves items={recentSaves} />
+      <div id="recent-saves" style={{ scrollMarginTop: 16 }}>
+        <RecentSaves items={recentSaves} />
+      </div>
 
       <footer className="muted page-footer">
         Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc.
