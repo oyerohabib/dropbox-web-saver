@@ -89,6 +89,68 @@ describe("saveAsset", () => {
     expect(result.method).toBe("url_import");
   });
 
+  it("probes extensionless URLs so the saved name gets a real extension", async () => {
+    vi.mocked(getAuthState).mockResolvedValue({
+      status: "signed_in",
+      appKey: "app-key",
+      redirectUri: "https://example.test",
+    });
+    vi.mocked(saveUrlToDropbox).mockResolvedValue({ pathDisplay: "/Designs/photo-abc.jpg" });
+    const probeAssetMetadata = vi.fn().mockResolvedValue({
+      contentType: "image/jpeg",
+      contentDispositionFilename: null,
+    });
+
+    const result = await saveAsset(
+      {
+        candidate: {
+          sourceUrl: "https://images.unsplash.com/photo-abc?w=900&auto=format",
+          pageUrl: "https://unsplash.com/photos/example",
+          detectedType: "image",
+          suggestedFilename: null,
+          requiresAuthenticatedFetch: false,
+          triggerKind: "scan",
+        },
+        destinationPath: "/Designs",
+      },
+      { fetchAssetBytes: vi.fn(), probeAssetMetadata, now: () => 9 },
+    );
+
+    expect(probeAssetMetadata).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(true);
+    expect(result.filename).toBe("photo-abc.jpg");
+    expect(saveUrlToDropbox).toHaveBeenCalledWith(
+      "/Designs/photo-abc.jpg",
+      "https://images.unsplash.com/photo-abc?w=900&auto=format",
+    );
+  });
+
+  it("skips the metadata probe when the filename already has an extension", async () => {
+    vi.mocked(getAuthState).mockResolvedValue({
+      status: "signed_in",
+      appKey: "app-key",
+      redirectUri: "https://example.test",
+    });
+    vi.mocked(saveUrlToDropbox).mockResolvedValue({ pathDisplay: "/Designs/mockup.png" });
+    const probeAssetMetadata = vi.fn();
+
+    await saveAsset(
+      {
+        candidate: {
+          sourceUrl: "https://cdn.example.com/mockup.png",
+          pageUrl: "https://example.com/project",
+          detectedType: "image",
+          suggestedFilename: null,
+          requiresAuthenticatedFetch: false,
+        },
+        destinationPath: "/Designs",
+      },
+      { fetchAssetBytes: vi.fn(), probeAssetMetadata, now: () => 10 },
+    );
+
+    expect(probeAssetMetadata).not.toHaveBeenCalled();
+  });
+
   it("falls back to direct upload when url import is not allowed", async () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",

@@ -9,10 +9,14 @@ import type {
   SaveRequest,
   SaveResult,
 } from "./types";
+import type { AssetProbeResult } from "./asset-probe";
+import { applyProbeResult } from "./asset-probe";
 import { detectAssetType } from "./utils/asset";
 import {
-  deriveFilename,
+  deriveCandidateFilename,
+  hasExtension,
   joinDropboxPath,
+  normalizeMimeType,
   parseContentDispositionFilename,
   sanitizeFilename,
 } from "./utils/filename";
@@ -22,6 +26,7 @@ import { getDomain } from "./utils/url";
 
 export interface SaveDependencies {
   fetchAssetBytes: (candidate: AssetCandidate, tabId?: number) => Promise<AssetFetchPayload>;
+  probeAssetMetadata?: (candidate: AssetCandidate) => Promise<AssetProbeResult | null>;
   now?: () => number;
 }
 
@@ -29,16 +34,7 @@ export function createPendingSave(
   request: SaveRequest,
   reason: "auth_required" | "folder_required" | "manual_override" | "context_review",
 ): PendingSaveState {
-  const resolvedFilename = deriveFilename(
-    request.candidate.sourceUrl,
-    request.finalFilename || request.candidate.suggestedFilename,
-    request.candidate.mimeType,
-    {
-      preferredFilename: request.finalFilename || request.candidate.preferredFilename,
-      contentDispositionFilename: request.candidate.contentDispositionFilename,
-      elementTextHint: request.candidate.elementTextHint,
-    },
-  );
+  const resolvedFilename = deriveCandidateFilename(request.candidate, request.finalFilename);
   return {
     mode: "single",
     request,
@@ -59,13 +55,7 @@ export function createPendingScanState(
     tabId,
     destinationPath,
     selectedSourceUrl: assets[0]?.sourceUrl ?? null,
-    selectedFilename: assets[0]
-      ? deriveFilename(assets[0].sourceUrl, assets[0].suggestedFilename, assets[0].mimeType, {
-          preferredFilename: assets[0].preferredFilename,
-          contentDispositionFilename: assets[0].contentDispositionFilename,
-          elementTextHint: assets[0].elementTextHint,
-        })
-      : null,
+    selectedFilename: assets[0] ? deriveCandidateFilename(assets[0]) : null,
     createdAt: Date.now(),
     reason: "scan",
   };
@@ -120,24 +110,20 @@ export async function saveAsset(
       return result;
     }
 
-    let filename = deriveFilename(
-      request.candidate.sourceUrl,
-      request.finalFilename || request.candidate.suggestedFilename,
-      request.candidate.mimeType,
-      {
-        preferredFilename: request.finalFilename || request.candidate.preferredFilename,
-        contentDispositionFilename: request.candidate.contentDispositionFilename,
-        elementTextHint: request.candidate.elementTextHint,
-      },
-    );
+    let candidate = request.candidate;
+    let filename = deriveCandidateFilename(candidate, request.finalFilename);
+    if (!hasExtension(filename) && dependencies.probeAssetMetadata) {
+      candidate = applyProbeResult(candidate, await dependencies.probeAssetMetadata(candidate));
+      filename = deriveCandidateFilename(candidate, request.finalFilename);
+    }
     let dropboxPath = joinDropboxPath(destinationPath, filename);
 
     let pathDisplay: string | undefined;
     let method: SaveResult["method"];
 
-    if (canUseUrlImport(request.candidate)) {
+    if (canUseUrlImport(candidate)) {
       try {
-        const imported = await saveUrlToDropbox(dropboxPath, request.candidate.sourceUrl);
+        const imported = await saveUrlToDropbox(dropboxPath, candidate.sourceUrl);
         pathDisplay = imported.pathDisplay;
         method = "url_import";
       } catch {
@@ -146,7 +132,7 @@ export async function saveAsset(
     }
 
     if (!pathDisplay) {
-      const assetPayload = await dependencies.fetchAssetBytes(request.candidate, request.tabId);
+      const assetPayload = await dependencies.fetchAssetBytes(candidate, request.tabId);
       if (
         !assetPayload.ok
         || !(assetPayload.arrayBuffer instanceof ArrayBuffer)
@@ -157,17 +143,16 @@ export async function saveAsset(
           "ASSET_FETCH_FAILED",
         );
       }
-      filename = deriveFilename(
-        assetPayload.finalUrl || request.candidate.sourceUrl,
-        request.finalFilename || request.candidate.suggestedFilename,
-        assetPayload.contentType || request.candidate.mimeType,
+      filename = deriveCandidateFilename(
         {
-          preferredFilename: request.finalFilename || request.candidate.preferredFilename,
-          contentDispositionFilename: parseContentDispositionFilename(
-            assetPayload.contentDispositionFilename,
-          ),
-          elementTextHint: request.candidate.elementTextHint,
+          ...candidate,
+          sourceUrl: assetPayload.finalUrl || candidate.sourceUrl,
+          mimeType: normalizeMimeType(assetPayload.contentType) ?? candidate.mimeType,
+          contentDispositionFilename:
+            parseContentDispositionFilename(assetPayload.contentDisposition)
+            ?? candidate.contentDispositionFilename,
         },
+        request.finalFilename,
       );
       dropboxPath = joinDropboxPath(destinationPath, filename);
       const uploaded = await uploadFileToDropbox(dropboxPath, assetPayload.arrayBuffer);
@@ -209,7 +194,7 @@ export async function saveAsset(
     const destinationPath = request.destinationPath || "/";
     const filename = request.finalFilename
       ? sanitizeFilename(request.finalFilename)
-      : deriveFilename(request.candidate.sourceUrl, request.candidate.suggestedFilename);
+      : deriveCandidateFilename(request.candidate);
     const result: SaveResult = {
       ok: false,
       status: "failed",

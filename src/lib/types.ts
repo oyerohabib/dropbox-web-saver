@@ -138,7 +138,7 @@ export interface AssetFetchPayload {
   status: number;
   contentType: string | null;
   finalUrl?: string;
-  contentDispositionFilename?: string | null;
+  contentDisposition?: string | null;
   arrayBuffer?: ArrayBuffer;
   base64?: string;
   error?: string;

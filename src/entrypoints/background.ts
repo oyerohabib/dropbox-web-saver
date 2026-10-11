@@ -36,7 +36,9 @@ import type {
   ScanPageAssetsResponse,
   StartScanFlowResponse,
 } from "../lib/types";
+import { applyProbeResult, probeAssetMetadata } from "../lib/asset-probe";
 import { detectAssetType } from "../lib/utils/asset";
+import { deriveCandidateFilename, hasExtension } from "../lib/utils/filename";
 import { isLikelyDirectAssetUrl } from "../lib/utils/url";
 
 const MENU_IDS = {
@@ -153,7 +155,7 @@ async function fetchAssetBytesInBackground(
         status: response.status,
         contentType: response.headers.get("content-type"),
         finalUrl: response.url,
-        contentDispositionFilename: response.headers.get("content-disposition"),
+        contentDisposition: response.headers.get("content-disposition"),
         error: `Source fetch failed (${response.status})`,
       };
     }
@@ -162,7 +164,7 @@ async function fetchAssetBytesInBackground(
       status: response.status,
       contentType: response.headers.get("content-type"),
       finalUrl: response.url,
-      contentDispositionFilename: response.headers.get("content-disposition"),
+      contentDisposition: response.headers.get("content-disposition"),
       arrayBuffer: await response.arrayBuffer(),
     };
   } catch (error) {
@@ -204,7 +206,7 @@ async function fetchAssetBytes(candidate: AssetCandidate, tabId?: number): Promi
 }
 
 async function executeSaveRequest(request: SaveRequest, reason?: "auth_required" | "folder_required") {
-  const result = await saveAsset(request, { fetchAssetBytes });
+  const result = await saveAsset(request, { fetchAssetBytes, probeAssetMetadata });
   if (result.status === "needs_auth") {
     await setPendingSave(createPendingSave(request, "auth_required"));
     await openSaveWindow();
@@ -265,7 +267,7 @@ async function scanActiveTab(): Promise<AssetCandidate[]> {
   }
 }
 
-async function enrichCandidate(candidate: AssetCandidate, tabId?: number): Promise<AssetCandidate> {
+async function describeCandidate(candidate: AssetCandidate, tabId?: number): Promise<AssetCandidate> {
   if (!tabId) return candidate;
   try {
     const description = await describeAssetTargetInTab(tabId, candidate.sourceUrl);
@@ -282,6 +284,12 @@ async function enrichCandidate(candidate: AssetCandidate, tabId?: number): Promi
   } catch {
     return candidate;
   }
+}
+
+async function enrichCandidate(candidate: AssetCandidate, tabId?: number): Promise<AssetCandidate> {
+  const described = await describeCandidate(candidate, tabId);
+  if (hasExtension(deriveCandidateFilename(described))) return described;
+  return applyProbeResult(described, await probeAssetMetadata(described));
 }
 
 async function startScanFlow(): Promise<StartScanFlowResponse> {

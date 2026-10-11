@@ -151,7 +151,7 @@ async function fetchAssetBytes(url: string, referrer?: string): Promise<AssetFet
         status: response.status,
         contentType: response.headers.get("content-type"),
         finalUrl: response.url,
-        contentDispositionFilename: response.headers.get("content-disposition"),
+        contentDisposition: response.headers.get("content-disposition"),
         error: `Asset fetch failed (${response.status})`,
       };
     }
@@ -170,7 +170,7 @@ async function fetchAssetBytes(url: string, referrer?: string): Promise<AssetFet
       status: response.status,
       contentType: response.headers.get("content-type"),
       finalUrl: response.url,
-      contentDispositionFilename: response.headers.get("content-disposition"),
+      contentDisposition: response.headers.get("content-disposition"),
       base64: arrayBufferToBase64(buffer),
     };
   } catch (error) {
