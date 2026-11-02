@@ -3,3 +3,4 @@ node_modules
 .wxt
 coverage
 dist
+store/
