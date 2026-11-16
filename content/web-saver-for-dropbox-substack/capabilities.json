@@ -1,0 +1,37 @@
+{
+  "live_tools": [],
+  "live_tools_source": "not-provided",
+  "env_keys_present": {
+    "GOOGLE_AI_API_KEY": false,
+    "UNSPLASH_ACCESS_KEY": false,
+    "PEXELS_API_KEY": false,
+    "PIXABAY_API_KEY": false
+  },
+  "python_deps": {
+    "patchright": false,
+    "playwright": true,
+    "weasyprint": true,
+    "google.genai": false,
+    "requests": false,
+    "markdown": true
+  },
+  "project_root_files": {
+    "BRAND.md": false,
+    "VOICE.md": false,
+    "DISCOURSE.md": false
+  },
+  "agents": {
+    "blog-reviewer": true,
+    "blog-researcher": true,
+    "blog-writer": true,
+    "blog-seo": true,
+    "blog-translator": true
+  },
+  "scripts": {
+    "scripts/lint_prose.py": true,
+    "scripts/load_untrusted_root.py": true,
+    "scripts/analyze_blog.py": true
+  },
+  "image_gen_path_available": true,
+  "openverse_assumed_available": true
+}

@@ -34,6 +34,7 @@ const defaultSettings: ExtensionSettings = {
     folderBehavior: "remember_last",
   },
   saveModeSetByUser: false,
+  walkthroughHidden: false,
 };
 
 export async function getSettings(): Promise<ExtensionSettings> {

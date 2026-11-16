@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DropboxConnectCard } from "../../components/DropboxConnectCard";
 import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
 import { SetupWizard } from "../../components/SetupWizard";
-import { Skeleton, StatusMessage, type StatusTone } from "../../components/ui";
+import { WalkthroughCard } from "../../components/WalkthroughCard";
+import { Button, Skeleton, StatusMessage, type StatusTone } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
 import { REPO_URL } from "../../lib/project";
 import { SUPPORTED_FILE_TYPES } from "../../lib/utils/file-types";
@@ -25,6 +26,25 @@ export function OptionsApp() {
   const [clearingHistory, setClearingHistory] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [preferencesReady, setPreferencesReady] = useState(false);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const page = pageRef.current;
+    const hero = heroRef.current;
+    const nav = navRef.current;
+    if (!page || !hero || !nav) return;
+    const syncStickyOffsets = () => {
+      page.style.setProperty("--settings-hero-height", `${hero.offsetHeight}px`);
+      page.style.setProperty("--settings-nav-height", `${nav.offsetHeight}px`);
+    };
+    syncStickyOffsets();
+    const observer = new ResizeObserver(syncStickyOffsets);
+    observer.observe(hero);
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, []);
 
   async function load() {
     const [nextAuthState, nextSettings, nextRecentSaves] = await Promise.all([
@@ -78,6 +98,21 @@ export function OptionsApp() {
     );
   }
 
+  async function setWalkthroughHidden(hidden: boolean) {
+    try {
+      const nextSettings = await sendBackgroundMessage<ExtensionSettings>({
+        type: "SAVE_SETTINGS",
+        settings: { walkthroughHidden: hidden },
+      });
+      setSettings(nextSettings);
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Could not update the walkthrough.",
+      });
+    }
+  }
+
   async function clearHistory() {
     if (!window.confirm("Clear your recent saves history? Files already in Dropbox are not affected.")) return;
     setClearingHistory(true);
@@ -108,6 +143,7 @@ export function OptionsApp() {
         onConnect={() => void connect()}
         onDisconnect={() => void disconnect()}
         onUseOwnApp={() => setShowOwnApp((current) => !current)}
+        ownAppAsLink={!missingKey}
       />
     </section>
   ) : null;
@@ -136,8 +172,8 @@ export function OptionsApp() {
   );
 
   return (
-    <div className="app-shell page">
-      <section className="hero">
+    <div className="app-shell page settings-page" ref={pageRef}>
+      <section className="hero" ref={heroRef}>
         <div className="row" style={{ gap: 12 }}>
           <img alt="" src="/icons/48.png" style={{ width: 40, height: 40, borderRadius: 10 }} />
           <div>
@@ -152,9 +188,18 @@ export function OptionsApp() {
               : "Connect Dropbox to start saving. It usually takes about 5 seconds."
             : "Choose how saving works, manage your Dropbox connection, and review recent saves."}
         </p>
+        {settings?.walkthroughHidden ? (
+          <Button className="watch-walkthrough" onClick={() => void setWalkthroughHidden(false)} variant="secondary">
+            Watch the walkthrough
+          </Button>
+        ) : null}
       </section>
 
-      <nav aria-label="Settings sections" className="page-nav">
+      {settings && !settings.walkthroughHidden ? (
+        <WalkthroughCard onHide={() => void setWalkthroughHidden(true)} />
+      ) : null}
+
+      <nav aria-label="Settings sections" className="page-nav" ref={navRef}>
         {authState ? <a href="#connection">Dropbox</a> : null}
         <a href="#preferences">Save preferences</a>
         <a href="#supported-files">Supported files</a>
@@ -205,7 +250,7 @@ export function OptionsApp() {
         </div>
       </section>
 
-      <div id="recent-saves" style={{ scrollMarginTop: 16 }}>
+      <div id="recent-saves">
         <RecentSaves
           clearing={clearingHistory}
           items={recentSaves}

@@ -9,6 +9,12 @@ Contributions and feedback are welcome. See [Contributing](#contributing) and [F
 
 > Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc. It uses its own icon rather than the Dropbox logo, in line with the [Dropbox brand guidelines](https://www.dropbox.com/developers/reference/branding-guide).
 
+## Walkthrough
+
+[![How to Save Web Assets to Dropbox](https://cdn.loom.com/sessions/thumbnails/c74743c06c9241ceb1d7588408c8e656-ef66f4a14827963e.gif)](https://www.loom.com/share/c74743c06c9241ceb1d7588408c8e656)
+
+Watch the walkthrough: https://www.loom.com/share/c74743c06c9241ceb1d7588408c8e656
+
 ## Features
 
 - **Connect Dropbox** in about 5 seconds: sign in, if asked, and click **Allow**
@@ -64,12 +70,12 @@ Updating Web Saver does not sign you out, and it does not move an existing conne
 
 - If Dropbox is already connected through an app you created, you stay signed in. Your default folder, save preferences, and recent saves stay. Settings says **Using your own Dropbox app.**
 - **Disconnect** removes the tokens and leaves your saved app key in place. The next **Connect Dropbox** uses that same app.
-- To switch to the shared app, open **Use your own Dropbox app**, clear the saved key, and save. That signs you out. Then click **Connect Dropbox**. Files already in your Dropbox stay where they are. The old app remains under [Dropbox → Settings → Connected apps](https://www.dropbox.com/account/connected_apps) until you remove it there.
+- To switch to the shared app, open **Change your Dropbox app**, clear the saved key, and save. That signs you out. Then click **Connect Dropbox**. Files already in your Dropbox stay where they are. The old app remains under [Dropbox → Settings → Connected apps](https://www.dropbox.com/account/connected_apps) until you remove it there.
 - If you installed Web Saver but never saved an app key, the update gives you the 5 second connect above.
 
 ## Privacy
 
-Sign-in tokens, preferences, and recent saves are stored only in the browser's extension storage. A personal Dropbox app key, if you add one, stays there too. There is no Web Saver server and no analytics, and nothing is sent to the developer except feedback you choose to send. The extension only contacts Dropbox and the website hosting the file you choose to save. The shared Dropbox app key only identifies the extension to Dropbox.
+Sign-in tokens, preferences, and recent saves are stored only in the browser's extension storage. A personal Dropbox app key, if you add one, stays there too. There is no Web Saver server and no analytics, and nothing is sent to the developer except feedback you choose to send. Saving only contacts Dropbox and the website hosting the file you choose to save. The settings walkthrough loads from Loom while it is visible, and hiding it stops that player. The shared Dropbox app key only identifies the extension to Dropbox.
 
 The full policy ships inside the extension as `privacy.html`, linked from the settings page, popup, and review window. [PRIVACY.md](PRIVACY.md) has the same text for public hosting, which the Chrome Web Store requires. Keep `PRIVACY.md` and `src/entrypoints/privacy/App.tsx` in sync when either changes.
 
@@ -177,7 +183,7 @@ Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.m
 
 ## Former Dropbox setup
 
-This is the previous way to connect, from before the shared Dropbox app. It takes about 3 minutes. Open settings and choose **Use your own Dropbox app**. A saved personal app key is used instead of the shared one. The guide on that screen is:
+This is the previous way to connect, from before the shared Dropbox app. It takes about 3 minutes. Open settings and choose **Use your own Dropbox app (much longer)**. A saved personal app key is used instead of the shared one. The guide on that screen is:
 
 1. **Create your Dropbox app** at [dropbox.com/developers/apps/create](https://www.dropbox.com/developers/apps/create): choose **Scoped access**, **Full Dropbox**, and any unique name.
 2. **Turn on permissions**: on the app's **Permissions** tab, tick these four scopes and click **Submit**:

@@ -62,7 +62,28 @@ describe("storage settings", () => {
   it("treats settings saved before the save mode flag existed as not chosen by the user", async () => {
     store.set("settings", { appKey: "dropbox-key", lastUsedFolderPath: "/Designs" });
 
-    expect((await getSettings()).saveModeSetByUser).toBe(false);
+    const settings = await getSettings();
+    expect(settings.saveModeSetByUser).toBe(false);
+    expect(settings.walkthroughHidden).toBe(false);
+  });
+
+  it("hides the walkthrough without dropping other settings", async () => {
+    await updateSettings({
+      appKey: "dropbox-key",
+      lastUsedFolderPath: "/Designs",
+      savePreferences: {
+        saveMode: "one_click",
+        promptForRename: false,
+        folderBehavior: "remember_last",
+      },
+    });
+
+    const nextSettings = await updateSettings({ walkthroughHidden: true });
+
+    expect(nextSettings.walkthroughHidden).toBe(true);
+    expect(nextSettings.appKey).toBe("dropbox-key");
+    expect(nextSettings.lastUsedFolderPath).toBe("/Designs");
+    expect(nextSettings.savePreferences.saveMode).toBe("one_click");
   });
 
   it("merges partial preference updates without dropping other settings", async () => {

@@ -7,6 +7,7 @@ const firstTimeSettings: ExtensionSettings = {
   lastUsedFolderPath: "/Photos",
   savePreferences: { saveMode: "reviewed", promptForRename: false, folderBehavior: "remember_last" },
   saveModeSetByUser: false,
+  walkthroughHidden: false,
 };
 
 const success: SaveResult = { ok: true, status: "success", message: "Saved" };

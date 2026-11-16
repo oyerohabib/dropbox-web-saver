@@ -191,6 +191,10 @@ a:hover,
   color: var(--muted);
 }
 
+.watch-walkthrough {
+  margin-top: var(--space-3);
+}
+
 .page-nav {
   display: flex;
   flex-wrap: wrap;
@@ -212,6 +216,52 @@ a:hover,
   background: var(--surface-muted);
   color: var(--ink);
   text-decoration: none;
+}
+
+.settings-page {
+  --sticky-top: var(--space-5);
+}
+
+.settings-page .hero,
+.settings-page .page-nav {
+  position: sticky;
+}
+
+.settings-page .hero {
+  top: var(--sticky-top);
+  z-index: 3;
+}
+
+.settings-page .hero::before,
+.settings-page .hero::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  left: 0;
+  background: var(--bg);
+  pointer-events: none;
+}
+
+.settings-page .hero::before {
+  bottom: 100%;
+  height: var(--sticky-top);
+}
+
+.settings-page .hero::after {
+  top: 100%;
+  height: var(--space-4);
+}
+
+.settings-page .page-nav {
+  top: calc(var(--sticky-top) + var(--settings-hero-height, 0px) + var(--space-4));
+  z-index: 2;
+}
+
+.settings-page .panel,
+.settings-page #recent-saves {
+  scroll-margin-top: calc(
+    var(--sticky-top) + var(--settings-hero-height, 0px) + var(--settings-nav-height, 0px) + (var(--space-4) * 2)
+  );
 }
 
 /* Text */
@@ -267,6 +317,23 @@ a:hover,
   justify-content: space-between;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
+}
+
+.walkthrough-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1108 / 831;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.walkthrough-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 /* Buttons */
