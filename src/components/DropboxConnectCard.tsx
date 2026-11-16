@@ -8,6 +8,7 @@ interface DropboxConnectCardProps {
   error?: string | null;
   layout?: "page" | "popup";
   ownAppOpen?: boolean;
+  ownAppAsLink?: boolean;
   onConnect?: () => void;
   onDisconnect?: () => void;
   onUseOwnApp?: () => void;
@@ -26,6 +27,7 @@ export function DropboxConnectCard({
   error = null,
   layout = "page",
   ownAppOpen = false,
+  ownAppAsLink = false,
   onConnect,
   onDisconnect,
   onUseOwnApp,
@@ -33,6 +35,15 @@ export function DropboxConnectCard({
   const signedIn = authState.status === "signed_in";
   const missingKey = authState.status === "missing_app_key";
   const sourceLine = appSourceLine(authState);
+  const ownAppLabel = ownAppOpen
+    ? "Hide your own Dropbox app"
+    : authState.appKeySource === "personal"
+      ? "Change your Dropbox app"
+      : ownAppAsLink
+        ? "Use your own Dropbox app (much longer)"
+        : "Use your own Dropbox app";
+  const showOwnAppButton = Boolean(onUseOwnApp) && !ownAppAsLink && !(missingKey && ownAppOpen);
+  const showOwnAppLink = Boolean(onUseOwnApp) && ownAppAsLink;
 
   if (layout === "popup" && signedIn) {
     return (
@@ -87,18 +98,14 @@ export function DropboxConnectCard({
             Connect Dropbox
           </Button>
         ) : null}
-        {onUseOwnApp && !(missingKey && ownAppOpen) ? (
+        {showOwnAppButton ? (
           <Button
             block={layout === "popup"}
             large={missingKey}
             onClick={onUseOwnApp}
             variant={missingKey ? "primary" : "secondary"}
           >
-            {ownAppOpen
-              ? "Hide your own Dropbox app"
-              : authState.appKeySource === "personal"
-                ? "Change your Dropbox app"
-                : "Use your own Dropbox app"}
+            {ownAppLabel}
           </Button>
         ) : null}
       </div>
@@ -107,6 +114,13 @@ export function DropboxConnectCard({
         Tokens stay in this browser. There is no Web Saver server.{" "}
         <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
       </div>
+      {showOwnAppLink ? (
+        <div className="muted">
+          <button className="link-button" onClick={onUseOwnApp} type="button">
+            {ownAppLabel}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

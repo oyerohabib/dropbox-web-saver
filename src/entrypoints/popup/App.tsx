@@ -119,9 +119,9 @@ export function PopupApp() {
             onConnect={() => void connect()}
             onDisconnect={() => void disconnect()}
             onUseOwnApp={
-              signedIn
-                ? undefined
-                : () => void openSettingsTab("setup").then(() => window.close())
+              authState.status === "missing_app_key"
+                ? () => void openSettingsTab("setup").then(() => window.close())
+                : undefined
             }
           />
         </section>

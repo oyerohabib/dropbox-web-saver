@@ -524,7 +524,11 @@ export function SaveApp() {
             authState={authState}
             connecting={connecting}
             onConnect={() => void connect()}
-            onUseOwnApp={() => void openSettingsTab("setup")}
+            onUseOwnApp={
+              authState.status === "missing_app_key"
+                ? () => void openSettingsTab("setup")
+                : undefined
+            }
           />
         </section>
       ) : null}
