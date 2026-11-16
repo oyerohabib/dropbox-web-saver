@@ -25,7 +25,7 @@ npm run dev
 
 1. Run `npm run build`.
 2. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select `.output/chrome-mv3`.
-3. Open the extension settings and click **Connect Dropbox**. One-click connect needs `WXT_DROPBOX_APP_KEY` in a gitignored `.env` (copy `.env.example`) and that app's redirect URI must include this browser's extension id. Otherwise choose **Use your own Dropbox app** on the settings page.
+3. Open the extension settings and click **Connect Dropbox**. One-click connect needs `WXT_DROPBOX_APP_KEY` in a gitignored `.env` (copy `.env.example`) and that app's redirect URI must include this browser's extension id. Otherwise the settings page opens **Your own Dropbox app**, which is the only way that build can connect. A build that already has the shared key keeps that longer setup behind **Use your own Dropbox app (much longer)**.
 
 ## Scripts
 
