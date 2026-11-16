@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DropboxConnectCard } from "../../components/DropboxConnectCard";
 import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
 import { Button, StatusMessage } from "../../components/ui";
@@ -15,6 +16,9 @@ export function PopupApp() {
   const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
   const [recentSaves, setRecentSaves] = useState<RecentSaveRecord[]>([]);
   const [loadingScan, setLoadingScan] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   async function load() {
@@ -29,6 +33,32 @@ export function PopupApp() {
   useEffect(() => {
     void load();
   }, []);
+
+  async function connect() {
+    setConnecting(true);
+    setAuthError(null);
+    try {
+      await sendBackgroundMessage<DropboxAuthState>({ type: "CONNECT_DROPBOX" });
+      await load();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Dropbox connection failed.");
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  async function disconnect() {
+    setDisconnecting(true);
+    setAuthError(null);
+    try {
+      await sendBackgroundMessage<{ ok: true }>({ type: "DISCONNECT_DROPBOX" });
+      await load();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Could not disconnect Dropbox.");
+    } finally {
+      setDisconnecting(false);
+    }
+  }
 
   async function startScanFlow() {
     setLoadingScan(true);
@@ -78,25 +108,22 @@ export function PopupApp() {
         </div>
       </header>
 
-      {authState && !signedIn ? (
+      {authState ? (
         <section className="panel stack">
-          <div>
-            <div className="section-title">
-              {authState.status === "missing_app_key" ? "Finish setting up" : "Reconnect Dropbox"}
-            </div>
-            <div className="muted">
-              {authState.status === "missing_app_key"
-                ? "Create your own Dropbox app and connect it. A guide walks you through it."
-                : "Your app key is saved. Connect your Dropbox account to start saving."}
-            </div>
-          </div>
-          <Button block large onClick={() => void openSettingsTab("setup").then(() => window.close())}>
-            {authState.status === "missing_app_key" ? "Set up Dropbox (5 steps, about 3 minutes)" : "Connect Dropbox"}
-          </Button>
-          <div className="muted">
-            🔒 Your key stays on this computer.{" "}
-            <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
-          </div>
+          <DropboxConnectCard
+            authState={authState}
+            connecting={connecting}
+            disconnecting={disconnecting}
+            error={authError}
+            layout="popup"
+            onConnect={() => void connect()}
+            onDisconnect={() => void disconnect()}
+            onUseOwnApp={
+              signedIn
+                ? undefined
+                : () => void openSettingsTab("setup").then(() => window.close())
+            }
+          />
         </section>
       ) : null}
 
