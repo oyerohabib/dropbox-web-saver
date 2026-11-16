@@ -39,6 +39,10 @@ export function PrivacyApp() {
             gets is feedback you choose to send yourself.
           </li>
           <li>No analytics, no tracking, no ads, and nothing is sold or shared.</li>
+          <li>
+            The settings walkthrough loads from Loom while it is showing. Hiding it stops that. Loom does not receive
+            your tokens or files.
+          </li>
         </ul>
       </Section>
 
@@ -57,7 +61,8 @@ export function PrivacyApp() {
             connected Dropbox account.
           </li>
           <li>
-            <strong>Your preferences</strong>: save mode, folder behaviour, rename prompt, and the last folder you used.
+            <strong>Your preferences</strong>: save mode, folder behaviour, rename prompt, the last folder you used, and
+            whether you hid the settings walkthrough.
           </li>
           <li>
             <strong>Recent saves</strong>: up to the last 20 saves, with file name, the website&apos;s domain, the
@@ -73,7 +78,7 @@ export function PrivacyApp() {
       </Section>
 
       <Section title="What is sent, and to whom">
-        <p>Web Saver only talks to two kinds of places, and only when you ask it to save something:</p>
+        <p>When you save a file, Web Saver only talks to two kinds of places:</p>
         <ul>
           <li>
             <strong>Dropbox</strong> (<code>www.dropbox.com</code>, <code>api.dropboxapi.com</code>,{" "}
@@ -87,6 +92,15 @@ export function PrivacyApp() {
             type. Requests use your normal browser session for that site, exactly as if you downloaded it yourself.
           </li>
         </ul>
+        <p>
+          The settings page also loads a walkthrough video from Loom (<code>www.loom.com</code>) while that video is
+          showing. Loom receives that request and handles it under the{" "}
+          <a href="https://www.loom.com/privacy-policy" rel="noopener noreferrer" target="_blank">
+            Loom privacy policy
+          </a>
+          . Hiding the walkthrough stops the player from loading. Web Saver does not send your Dropbox account, tokens,
+          or files to Loom.
+        </p>
         <p>Nothing is sent to the developer or to any other service, unless you choose to send feedback as described below.</p>
       </Section>
 

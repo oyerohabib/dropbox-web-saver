@@ -8,6 +8,7 @@ Last updated November 16, 2026
 - Sign-in tokens and settings are stored only in this browser's extension storage on your computer. Web Saver uses a public Dropbox app so you can connect with one click. That app key only identifies the extension to Dropbox. If you use your own Dropbox app, that key stays in this browser too.
 - The developer never receives your tokens, files, or browsing activity. The only thing the developer ever gets is feedback you choose to send yourself.
 - No analytics, no tracking, no ads, and nothing is sold or shared.
+- The settings walkthrough loads from Loom while it is showing. Hiding it stops that. Loom does not receive your tokens or files.
 
 ## What is stored on your computer
 
@@ -15,17 +16,19 @@ Everything below is kept in `chrome.storage.local`, which only this extension in
 
 - **Your own Dropbox app key**, only if you choose to connect with an app you created instead of Web Saver's. Web Saver's app key is part of the extension and only identifies it to Dropbox.
 - **Dropbox sign-in tokens** (access token, refresh token, expiry) and the email address of the connected Dropbox account.
-- **Your preferences**: save mode, folder behaviour, rename prompt, and the last folder you used.
+- **Your preferences**: save mode, folder behaviour, rename prompt, the last folder you used, and whether you hid the settings walkthrough.
 - **Recent saves**: up to the last 20 saves, with file name, the website's domain, the destination folder, the time, and the result. You can clear this list at any time from the settings page.
 - **Temporary save state**: while a review window is open, the address of the file you are saving. It is removed when the save finishes or the window closes.
 - **Setup checklist**: which setup steps you have ticked.
 
 ## What is sent, and to whom
 
-Web Saver only talks to two kinds of places, and only when you ask it to save something:
+When you save a file, Web Saver only talks to two kinds of places:
 
 - **Dropbox** (`www.dropbox.com`, `api.dropboxapi.com`, `content.dropboxapi.com`), to sign you in, list and create folders, and upload the files you choose. For public files, Web Saver may ask Dropbox to download the file directly from its address, so Dropbox receives that address. Dropbox handles this data under the [Dropbox privacy policy](https://www.dropbox.com/privacy).
 - **The website hosting the file** you chose to save, to download it and to check its file type. Requests use your normal browser session for that site, exactly as if you downloaded it yourself.
+
+The settings page also loads a walkthrough video from Loom (`www.loom.com`) while that video is showing. Loom receives that request and handles it under the [Loom privacy policy](https://www.loom.com/privacy-policy). Hiding the walkthrough stops the player from loading. Web Saver does not send your Dropbox account, tokens, or files to Loom.
 
 Nothing is sent to the developer or to any other service, unless you choose to send feedback as described below.
 
