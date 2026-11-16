@@ -77,9 +77,12 @@ export interface DropboxTokens {
   accountEmail?: string;
 }
 
+export type DropboxAppKeySource = "personal" | "builtin" | "none";
+
 export interface DropboxAuthState {
   status: "missing_app_key" | "signed_out" | "signed_in";
   appKey: string | null;
+  appKeySource: DropboxAppKeySource;
   redirectUri: string;
   accountEmail?: string;
   expiresAt?: number;

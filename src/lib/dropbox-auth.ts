@@ -5,6 +5,7 @@ import {
   DROPBOX_SCOPES,
   TOKEN_EXPIRY_SKEW_MS,
 } from "./constants";
+import { readBuiltinAppKey, resolveDropboxAppKey } from "./dropbox-app-key";
 import { getSettings, getTokens, setTokens } from "./storage";
 import type { DropboxAuthState, DropboxTokens } from "./types";
 import { SavePipelineError } from "./utils/errors";
@@ -81,11 +82,13 @@ async function refreshTokens(appKey: string, refreshToken: string): Promise<Drop
 export async function getAuthState(): Promise<DropboxAuthState> {
   const settings = await getSettings();
   const redirectUri = chrome.identity.getRedirectURL("dropbox");
+  const { appKey, appKeySource } = resolveDropboxAppKey(settings.appKey, readBuiltinAppKey());
 
-  if (!settings.appKey) {
+  if (!appKey) {
     return {
       status: "missing_app_key",
       appKey: null,
+      appKeySource,
       redirectUri,
     };
   }
@@ -94,14 +97,16 @@ export async function getAuthState(): Promise<DropboxAuthState> {
   if (!tokens) {
     return {
       status: "signed_out",
-      appKey: settings.appKey,
+      appKey,
+      appKeySource,
       redirectUri,
     };
   }
 
   return {
     status: "signed_in",
-    appKey: settings.appKey,
+    appKey,
+    appKeySource,
     redirectUri,
     accountEmail: tokens.accountEmail,
     expiresAt: tokens.expiresAt,
@@ -110,8 +115,9 @@ export async function getAuthState(): Promise<DropboxAuthState> {
 
 export async function connectDropbox(): Promise<DropboxAuthState> {
   const settings = await getSettings();
-  if (!settings.appKey) {
-    throw new Error("Set a Dropbox app key before connecting.");
+  const { appKey } = resolveDropboxAppKey(settings.appKey, readBuiltinAppKey());
+  if (!appKey) {
+    throw new Error("No Dropbox app key is available. Add your own in settings.");
   }
 
   const redirectUri = chrome.identity.getRedirectURL("dropbox");
@@ -119,7 +125,7 @@ export async function connectDropbox(): Promise<DropboxAuthState> {
   const challenge = await createCodeChallenge(verifier);
   const state = crypto.randomUUID();
   const authorizeUrl = new URL(DROPBOX_OAUTH_AUTHORIZE);
-  authorizeUrl.searchParams.set("client_id", settings.appKey);
+  authorizeUrl.searchParams.set("client_id", appKey);
   authorizeUrl.searchParams.set("redirect_uri", redirectUri);
   authorizeUrl.searchParams.set("response_type", "code");
   authorizeUrl.searchParams.set("token_access_type", "offline");
@@ -147,7 +153,7 @@ export async function connectDropbox(): Promise<DropboxAuthState> {
   const tokens = await exchangeCodeForTokens({
     code,
     codeVerifier: verifier,
-    appKey: settings.appKey,
+    appKey,
     redirectUri,
   });
 
@@ -171,8 +177,9 @@ export async function disconnectDropbox(): Promise<void> {
 export async function getValidAccessToken(): Promise<string> {
   const settings = await getSettings();
   const tokens = await getTokens();
+  const { appKey } = resolveDropboxAppKey(settings.appKey, readBuiltinAppKey());
 
-  if (!settings.appKey || !tokens) {
+  if (!appKey || !tokens) {
     throw new SavePipelineError("Dropbox is not connected. Connect Dropbox to continue.", "AUTH_REQUIRED");
   }
 
@@ -180,7 +187,7 @@ export async function getValidAccessToken(): Promise<string> {
     return tokens.accessToken;
   }
 
-  const refreshed = await refreshTokens(settings.appKey, tokens.refreshToken);
+  const refreshed = await refreshTokens(appKey, tokens.refreshToken);
   await setTokens({
     ...refreshed,
     accountEmail: tokens.accountEmail,

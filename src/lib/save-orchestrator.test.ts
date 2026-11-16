@@ -31,6 +31,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     vi.mocked(getCurrentAccount).mockResolvedValue({ email: "designer@example.com" });
@@ -61,6 +62,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     vi.mocked(getCurrentAccount).mockResolvedValue({ email: "designer@example.com" });
@@ -94,6 +96,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     vi.mocked(saveUrlToDropbox).mockResolvedValue({ pathDisplay: "/Designs/photo-abc.jpg" });
@@ -130,6 +133,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     vi.mocked(saveUrlToDropbox).mockResolvedValue({ pathDisplay: "/Designs/mockup.png" });
@@ -156,6 +160,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     vi.mocked(getCurrentAccount).mockResolvedValue({ email: "designer@example.com" });
@@ -195,6 +200,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
 
@@ -232,6 +238,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     const findMissingSitePermission = vi.fn().mockResolvedValue("https://app.example.com/*");
@@ -266,6 +273,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     const findMissingSitePermission = vi.fn().mockResolvedValue(null);
@@ -303,6 +311,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     vi.mocked(getCurrentAccount).mockResolvedValue({ email: "designer@example.com" });
@@ -343,6 +352,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     vi.mocked(getCurrentAccount).mockResolvedValue({ email: "designer@example.com" });
@@ -370,6 +380,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     vi.mocked(getCurrentAccount).mockResolvedValue({ email: "designer@example.com" });
@@ -399,6 +410,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     vi.mocked(uploadFileToDropbox).mockRejectedValue(
@@ -436,6 +448,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
     vi.mocked(saveUrlToDropbox).mockRejectedValue(
@@ -465,6 +478,7 @@ describe("saveAsset", () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_out",
       appKey: "app-key",
+      appKeySource: "personal",
       redirectUri: "https://example.test",
     });
 
