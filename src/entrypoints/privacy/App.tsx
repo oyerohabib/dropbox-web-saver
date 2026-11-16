@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { CONTACT_EMAIL, ISSUES_URL } from "../../lib/project";
 
-const LAST_UPDATED = "October 11, 2026";
+const LAST_UPDATED = "November 16, 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -30,12 +30,13 @@ export function PrivacyApp() {
         <ul>
           <li>There is no Web Saver server. The extension runs entirely in your browser.</li>
           <li>
-            Your Dropbox app key, sign-in tokens, and settings are stored only in this browser&apos;s extension
-            storage on your computer.
+            Sign-in tokens and settings are stored only in this browser&apos;s extension storage on your computer. Web
+            Saver uses a public Dropbox app so you can connect with one click. That app key only identifies the
+            extension to Dropbox. If you use your own Dropbox app, that key stays in this browser too.
           </li>
           <li>
-            The developer never receives your app key, tokens, files, or browsing activity. The only thing the developer
-            ever gets is feedback you choose to send yourself.
+            The developer never receives your tokens, files, or browsing activity. The only thing the developer ever
+            gets is feedback you choose to send yourself.
           </li>
           <li>No analytics, no tracking, no ads, and nothing is sold or shared.</li>
         </ul>
@@ -48,7 +49,8 @@ export function PrivacyApp() {
         </p>
         <ul>
           <li>
-            <strong>Your Dropbox app key</strong>, which identifies the Dropbox app you created in your own account.
+            <strong>Your own Dropbox app key</strong>, only if you choose to connect with an app you created instead of
+            Web Saver&apos;s. Web Saver&apos;s app key is part of the extension and only identifies it to Dropbox.
           </li>
           <li>
             <strong>Dropbox sign-in tokens</strong> (access token, refresh token, expiry) and the email address of the
@@ -110,7 +112,7 @@ export function PrivacyApp() {
           <li>
             If <strong>Include version and browser info</strong> is on, the message includes the extension version,
             your browser and operating system (for example &quot;Chrome 141 on macOS&quot;), and whether Dropbox is
-            connected. It never includes your app key, tokens, browsing history, or saved files.
+            connected. It never includes a personal app key, tokens, browsing history, or saved files.
           </li>
           <li>
             <strong>Report this problem</strong> in the review window copies the error message into the form. Error
@@ -126,7 +128,7 @@ export function PrivacyApp() {
 
       <Section title="Why the extension needs each permission">
         <ul>
-          <li><strong>storage</strong>: keep your app key, tokens, preferences, and recent saves on your computer.</li>
+          <li><strong>storage</strong>: keep your tokens, an optional personal app key, preferences, and recent saves on your computer.</li>
           <li><strong>contextMenus</strong>: add the &quot;Save … to Dropbox&quot; items to the right-click menu.</li>
           <li><strong>identity</strong>: open Dropbox&apos;s own sign-in window and receive the result securely.</li>
           <li>
@@ -144,11 +146,21 @@ export function PrivacyApp() {
         </ul>
       </Section>
 
-      <Section title="Why you create your own Dropbox app">
+      <Section title="How Dropbox sign-in works">
         <p>
-          Instead of routing everyone through a shared app owned by the developer, Web Saver connects through a Dropbox
-          app that you create in your own account. Only you can see or manage it, and only you can revoke it. Sign-in
-          uses OAuth with PKCE, so no app secret is ever needed or stored.
+          Web Saver connects with OAuth and PKCE. No app secret is stored. By default it uses Web Saver&apos;s public
+          Dropbox app, which only identifies the extension to Dropbox. Tokens stay in this browser, and the developer
+          never receives them or your files.
+        </p>
+        <p>
+          You can instead create a Dropbox app in your own account and paste its app key in settings. That takes about
+          3 minutes. That key is stored only in this browser. Only you can manage that app, and only you can revoke it.
+        </p>
+        <p>
+          If you connected before this change by creating your own Dropbox app, that connection stays as it is.
+          Updating the extension does not move you to Web Saver&apos;s app, does not replace your tokens, and does not
+          change your preferences or recent saves. Your personal app key remains only on this computer. Disconnecting
+          does not delete it. Clearing that saved key signs you out; the next connect can use Web Saver&apos;s app.
         </p>
         <p>
           Web Saver requests the <code>account_info.read</code>, <code>files.metadata.read</code>,{" "}
@@ -169,10 +181,11 @@ export function PrivacyApp() {
             </a>.
           </li>
           <li>
-            Delete your Dropbox app from the{" "}
+            Delete a Dropbox app you created from the{" "}
             <a href="https://www.dropbox.com/developers/apps" rel="noopener noreferrer" target="_blank">
               Dropbox App Console
-            </a>.
+            </a>
+            . Web Saver&apos;s shared app is revoked from Connected apps, not by deleting it.
           </li>
           <li><strong>Clear history</strong> on the settings page removes the recent saves list.</li>
           <li>Removing the extension deletes everything it stored in your browser.</li>
