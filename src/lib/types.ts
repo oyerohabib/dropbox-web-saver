@@ -117,6 +117,7 @@ export interface ExtensionSettings {
   lastUsedFolderPath: string | null;
   savePreferences: SavePreferences;
   saveModeSetByUser: boolean;
+  walkthroughHidden: boolean;
 }
 
 export interface SetupProgress {
@@ -130,6 +131,7 @@ export interface ExtensionSettingsPatch {
   lastUsedFolderPath?: string | null;
   savePreferences?: Partial<SavePreferences>;
   saveModeSetByUser?: boolean;
+  walkthroughHidden?: boolean;
 }
 
 export interface PendingSingleSaveState {
