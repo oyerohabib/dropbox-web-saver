@@ -30,7 +30,7 @@ const PLACEHOLDERS: Record<FeedbackKind, { title: string; description: string }>
     description: "What you'd like, and what you're trying to do that it would help with.",
   },
   feedback: {
-    title: "The setup guide was confusing at step 3",
+    title: "Connect Dropbox was unclear",
     description: "What you like, what's confusing, or anything else on your mind.",
   },
 };
@@ -131,7 +131,7 @@ export function FeedbackApp() {
           <div className="stack-sm">
             <Toggle
               checked={includeDiagnostics}
-              description="Helps reproduce problems. Never includes your app key, tokens, pages, or files."
+              description="Helps reproduce problems. Never includes a personal app key, tokens, pages, or files."
               label="Include version and browser info"
               onChange={setIncludeDiagnostics}
             />

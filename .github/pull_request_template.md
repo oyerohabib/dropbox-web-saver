@@ -19,4 +19,4 @@
 
 - [ ] Privacy policy (`PRIVACY.md` and `src/entrypoints/privacy/App.tsx`) updated if data handling or permissions changed
 - [ ] README updated if behaviour changed
-- [ ] No Dropbox app keys, secrets, or tokens committed
+- [ ] No Dropbox app secrets or access tokens committed

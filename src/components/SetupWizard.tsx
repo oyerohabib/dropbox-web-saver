@@ -27,11 +27,11 @@ export function PrivacyBanner() {
     <div className="privacy-banner">
       <span aria-hidden="true" className="privacy-banner-icon">🔒</span>
       <div className="stack-sm">
-        <strong>Your key stays on this computer</strong>
+        <strong>Tokens stay on this computer</strong>
         <span>
-          The app key and the sign-in tokens Dropbox gives you are stored only in this browser&apos;s extension
-          storage. There is no Web Saver server. Files go from the web page or Dropbox straight into your Dropbox.
-          The developer never sees your key, tokens, or files.
+          Sign-in tokens are stored only in this browser. There is no Web Saver server, and files go straight into
+          your Dropbox. Web Saver&apos;s Dropbox app only tells Dropbox which extension is connecting. If you use your
+          own app, that app key stays here too. The developer never sees your tokens or files.
         </span>
         <a href="/privacy.html" rel="noopener" target="_blank">Read the privacy policy</a>
       </div>
@@ -174,7 +174,7 @@ export function SetupWizard({ authState, appKey, onChange }: SetupWizardProps) {
         <>
           <p>
             Open the <strong>Settings</strong> tab of your app. Under <strong>OAuth 2 → Redirect URIs</strong>, paste
-            this address and click <strong>Add</strong>.
+            this address and click <strong>Add</strong>. On the same tab, turn on <strong>Allow public clients</strong>.
           </p>
           <CopyField value={authState.redirectUri} />
           <p className="muted">

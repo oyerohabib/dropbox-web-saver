@@ -44,7 +44,7 @@
   ];
 
   const settings = {
-    appKey: scene === "setup" ? null : "k7x2m9q4w1p8z5c",
+    appKey: null,
     lastUsedFolderPath: "/Photos/Iceland 2026",
     savePreferences: {
       saveMode: scene === "single" ? "reviewed" : "one_click",
@@ -54,14 +54,16 @@
     saveModeSetByUser: true,
   };
 
+  const redirectUri = "https://abcdefghijklmnop.chromiumapp.org/dropbox";
   const authState =
     scene === "setup"
-      ? { status: "missing_app_key", appKey: null, redirectUri: "https://abcdefghijklmnop.chromiumapp.org/dropbox" }
+      ? { status: "signed_out", appKey: null, appKeySource: "builtin", redirectUri }
       : {
           status: "signed_in",
-          appKey: settings.appKey,
+          appKey: null,
+          appKeySource: "builtin",
           accountEmail: "alex@example.com",
-          redirectUri: "https://abcdefghijklmnop.chromiumapp.org/dropbox",
+          redirectUri,
         };
 
   const folders = {

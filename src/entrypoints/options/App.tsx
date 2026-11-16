@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
+import { DropboxConnectCard } from "../../components/DropboxConnectCard";
 import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
 import { SetupWizard } from "../../components/SetupWizard";
-import { Button, CopyField, Skeleton, StatusMessage, type StatusTone } from "../../components/ui";
+import { Skeleton, StatusMessage, type StatusTone } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
 import { REPO_URL } from "../../lib/project";
-import { maskAppKey } from "../../lib/utils/app-key";
 import { SUPPORTED_FILE_TYPES } from "../../lib/utils/file-types";
 import type {
   DropboxAuthState,
@@ -13,13 +13,13 @@ import type {
   RecentSaveRecord,
 } from "../../lib/types";
 
-type BusyAction = "disconnect";
+type BusyAction = "connect" | "disconnect";
 
 export function OptionsApp() {
   const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
   const [settings, setSettings] = useState<ExtensionSettings | null>(null);
   const [recentSaves, setRecentSaves] = useState<RecentSaveRecord[]>([]);
-  const [showGuide, setShowGuide] = useState(window.location.hash === "#setup");
+  const [showOwnApp, setShowOwnApp] = useState(window.location.hash === "#setup");
   const [message, setMessage] = useState<{ tone: StatusTone; text: string } | null>(null);
   const [busyAction, setBusyAction] = useState<BusyAction | null>(null);
   const [clearingHistory, setClearingHistory] = useState(false);
@@ -69,6 +69,15 @@ export function OptionsApp() {
     );
   }
 
+  function connect() {
+    return runAction(
+      "connect",
+      () => sendBackgroundMessage<DropboxAuthState>({ type: "CONNECT_DROPBOX" }),
+      "Dropbox connected.",
+      "Could not connect Dropbox.",
+    );
+  }
+
   async function clearHistory() {
     if (!window.confirm("Clear your recent saves history? Files already in Dropbox are not affected.")) return;
     setClearingHistory(true);
@@ -83,19 +92,47 @@ export function OptionsApp() {
   }
 
   const signedIn = authState?.status === "signed_in";
+  const missingKey = authState?.status === "missing_app_key";
+
+  useEffect(() => {
+    if (missingKey) setShowOwnApp(true);
+  }, [missingKey]);
+
+  const connectionSection = authState ? (
+    <section className="panel stack" id="connection">
+      <DropboxConnectCard
+        authState={authState}
+        connecting={busyAction === "connect"}
+        disconnecting={busyAction === "disconnect"}
+        ownAppOpen={showOwnApp}
+        onConnect={() => void connect()}
+        onDisconnect={() => void disconnect()}
+        onUseOwnApp={() => setShowOwnApp((current) => !current)}
+      />
+    </section>
+  ) : null;
 
   const setupSection = (
     <section className="panel" id="setup">
       <div className="panel-header">
         <div>
-          <div className="section-title">Set up Dropbox</div>
+          <div className="section-title">Your own Dropbox app</div>
           <div className="muted">
-            Web Saver connects through a small Dropbox app that you create in your own account.
+            {missingKey
+              ? "Create a Dropbox app in your account and paste its app key. That is how this copy of Web Saver connects."
+              : "Optional, and it takes about 3 minutes. A Dropbox app you create is used instead of Web Saver's app. Your key stays in this browser."}
           </div>
         </div>
       </div>
       <SetupWizard appKey={settings?.appKey ?? null} authState={authState} onChange={load} />
     </section>
+  );
+
+  const dropboxSections = (
+    <>
+      {connectionSection}
+      {showOwnApp ? setupSection : null}
+    </>
   );
 
   return (
@@ -110,15 +147,16 @@ export function OptionsApp() {
         </div>
         <p>
           {authState && !signedIn
-            ? "Finish the short setup below to start saving to Dropbox. Everything stays in this browser."
+            ? missingKey
+              ? "Add your own Dropbox app below to start saving. Everything stays in this browser."
+              : "Connect Dropbox to start saving. It usually takes about 5 seconds."
             : "Choose how saving works, manage your Dropbox connection, and review recent saves."}
         </p>
       </section>
 
       <nav aria-label="Settings sections" className="page-nav">
-        {authState && !signedIn ? <a href="#setup">Setup</a> : null}
+        {authState ? <a href="#connection">Dropbox</a> : null}
         <a href="#preferences">Save preferences</a>
-        {signedIn ? <a href="#connection">Dropbox connection</a> : null}
         <a href="#supported-files">Supported files</a>
         <a href="#recent-saves">Recent saves</a>
       </nav>
@@ -127,7 +165,7 @@ export function OptionsApp() {
 
       {!authState ? <Skeleton rows={4} /> : null}
 
-      {authState && !signedIn ? setupSection : null}
+      {authState && !signedIn ? dropboxSections : null}
 
       <section className="panel" id="preferences">
         <div className="panel-header">
@@ -143,48 +181,7 @@ export function OptionsApp() {
         />
       </section>
 
-      {signedIn && authState ? (
-        <div className="options-grid" id="connection">
-          <section className="panel stack">
-            <div className="row row-between">
-              <div className="section-title">Dropbox connection</div>
-              <span className="badge success">
-                <span className="status-dot" />
-                Connected
-              </span>
-            </div>
-            <div className="muted break-anywhere">
-              Signed in{authState.accountEmail ? ` as ${authState.accountEmail}` : ""}.
-            </div>
-            <div className="actions-wrap">
-              <Button loading={busyAction === "disconnect"} onClick={() => void disconnect()} variant="ghost">
-                Disconnect
-              </Button>
-            </div>
-          </section>
-
-          <section className="panel stack" id="dropbox-app">
-            <div className="section-title">Your Dropbox app</div>
-            <div className="row row-between">
-              <span className="row">
-                <span className="muted">App key</span>
-                <span className="path-pill">{maskAppKey(settings?.appKey ?? "")}</span>
-              </span>
-              <Button onClick={() => setShowGuide(true)} variant="ghost">Change</Button>
-            </div>
-            <div className="field">
-              <span className="field-label">Redirect URI</span>
-              <CopyField value={authState.redirectUri} />
-            </div>
-            <span className="muted">Stored only in this browser. Never sent to Web Saver.</span>
-            <button className="link-button" onClick={() => setShowGuide((current) => !current)} type="button">
-              {showGuide ? "Hide setup guide" : "Show setup guide"}
-            </button>
-          </section>
-        </div>
-      ) : null}
-
-      {signedIn && showGuide ? setupSection : null}
+      {signedIn ? dropboxSections : null}
 
       <section className="panel stack" id="supported-files">
         <div>

@@ -3,7 +3,7 @@
 [![CI](https://github.com/oyerohabib/dropbox-web-saver/actions/workflows/ci.yml/badge.svg)](https://github.com/oyerohabib/dropbox-web-saver/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Open-source Chromium extension (Chrome, Brave, Edge) for saving images, videos, audio, and linked files from any web page straight into Dropbox, without downloading them locally first. It has no server: you connect your own Dropbox app, and your key and tokens never leave your browser.
+Open-source Chromium extension (Chrome, Brave, Edge) for saving images, videos, audio, and linked files from any web page straight into Dropbox, without downloading them locally first. It has no server: you sign in to Dropbox in the browser, and your tokens never leave your computer. Connecting takes about 5 seconds with Web Saver's public Dropbox app. The [former setup](#former-dropbox-setup) is still available.
 
 Contributions and feedback are welcome. See [Contributing](#contributing) and [Feedback and bug reports](#feedback-and-bug-reports).
 
@@ -11,6 +11,7 @@ Contributions and feedback are welcome. See [Contributing](#contributing) and [F
 
 ## Features
 
+- **Connect Dropbox** in about 5 seconds: sign in, if asked, and click **Allow**
 - Right-click actions: **Save this image / video / audio to Dropbox** and **Save the file this link opens to Dropbox**
 - **Find files on this page**: lists the images, videos, audio files, and downloadable links on the current page with thumbnails, so you can tick several and save them all at once
 - Review window before each save: see the filename, rename it, and change the destination folder
@@ -43,29 +44,32 @@ A link to any other file still works when it has a `download` attribute, or when
 
 The list lives in `src/lib/utils/file-types.ts`. The scanner, the right-click link check, and the settings page all read from it, so update this table when you change it.
 
-## Dropbox app setup
+## Connect Dropbox
 
-Each user connects through a Dropbox app they create in their own account, so no shared app or server is involved. The settings page opens automatically on first install and shows a step-by-step setup guide with links, copy buttons, and progress checkmarks. The popup and the review window link to the same guide until Dropbox is connected.
+Most people are done in about 5 seconds:
 
-For reference, the steps are:
+1. Click **Connect Dropbox** in the popup, on the settings page, or in the review window.
+2. A Dropbox window opens. Sign in if Dropbox asks you to.
+3. Click **Allow**.
 
-1. **Create your Dropbox app** at [dropbox.com/developers/apps/create](https://www.dropbox.com/developers/apps/create): choose **Scoped access**, **Full Dropbox**, and any unique name.
-2. **Turn on permissions**: on the app's **Permissions** tab, tick these four scopes and click **Submit**:
-   - `account_info.read`
-   - `files.metadata.read`
-   - `files.metadata.write`
-   - `files.content.write`
-3. **Add the redirect URI**: copy it from the setup guide (it looks like `https://<extension-id>.chromiumapp.org/dropbox`) and add it under **OAuth 2 → Redirect URIs** on the app's **Settings** tab.
-4. **Paste your App key** from the app's **Settings** tab into the guide. Never paste the App secret; sign-in uses PKCE and doesn't need it.
-5. **Connect Dropbox** and click **Allow** in the Dropbox window.
+That is the whole setup. Web Saver then remembers the connection in this browser. The next save does not ask you to sign in again. There is no Web Saver server, and no app secret is stored. Sign-in is OAuth with PKCE: Dropbox gives the extension a short-lived access token and a refresh token, and those stay in this browser's extension storage.
 
-If connecting fails, the guide points to the step that most likely needs fixing (for example, a redirect URI mismatch points back to step 3).
+The extension ships with one public Dropbox app key (`WXT_DROPBOX_APP_KEY`). That key only tells Dropbox which extension is asking to connect. It is not a password and it is not an access token. Anyone can see it in the built extension. What must stay private are the tokens Dropbox issues for your account.
 
-The extension ID is stable as long as you load it from the same folder. Loading it from a new folder gives a new ID and a new redirect URI.
+The maintainer registers the redirect URI `https://<extension-id>.chromiumapp.org/dropbox` once on that Dropbox app, and turns on **Allow public clients**. The Chrome Web Store extension id stays the same across updates. Do not add a new `manifest.key` after the extension is published, because that would change the id and the redirect would stop matching.
+
+### If you already connected
+
+Updating Web Saver does not sign you out, and it does not move an existing connection onto the shared app.
+
+- If Dropbox is already connected through an app you created, you stay signed in. Your default folder, save preferences, and recent saves stay. Settings says **Using your own Dropbox app.**
+- **Disconnect** removes the tokens and leaves your saved app key in place. The next **Connect Dropbox** uses that same app.
+- To switch to the shared app, open **Use your own Dropbox app**, clear the saved key, and save. That signs you out. Then click **Connect Dropbox**. Files already in your Dropbox stay where they are. The old app remains under [Dropbox → Settings → Connected apps](https://www.dropbox.com/account/connected_apps) until you remove it there.
+- If you installed Web Saver but never saved an app key, the update gives you the 5 second connect above.
 
 ## Privacy
 
-The app key, Dropbox tokens, preferences, and recent saves are stored only in the browser's extension storage. There is no Web Saver server and no analytics, and nothing is sent to the developer except feedback you choose to send. The extension only contacts Dropbox and the website hosting the file you choose to save.
+Sign-in tokens, preferences, and recent saves are stored only in the browser's extension storage. A personal Dropbox app key, if you add one, stays there too. There is no Web Saver server and no analytics, and nothing is sent to the developer except feedback you choose to send. The extension only contacts Dropbox and the website hosting the file you choose to save. The shared Dropbox app key only identifies the extension to Dropbox.
 
 The full policy ships inside the extension as `privacy.html`, linked from the settings page, popup, and review window. [PRIVACY.md](PRIVACY.md) has the same text for public hosting, which the Chrome Web Store requires. Keep `PRIVACY.md` and `src/entrypoints/privacy/App.tsx` in sync when either changes.
 
@@ -159,7 +163,7 @@ Chrome Web Store listing copy, screenshots, and capture scripts live in the loca
 - Assets fetched through the page's login session are limited to about 40 MB when transferred from the page. Larger files fall back to a direct fetch from the extension.
 - Some files (for example images served from a separate CDN) can only be saved after you allow their site in the save window. Access you grant can be removed from the extension's details page in Chrome.
 - Streamed video (HLS/DASH, `blob:` sources from players such as YouTube) and CSS background images aren't detected.
-- The Dropbox app key and tokens are stored locally in the browser profile. There is no backend.
+- Sign-in tokens are stored locally in the browser profile. There is no backend. A personal Dropbox app key, if you add one, stays there too.
 
 ## Contributing
 
@@ -170,6 +174,24 @@ Good first steps: browse [open issues](https://github.com/oyerohabib/dropbox-web
 ## Security
 
 Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md), not in public issues.
+
+## Former Dropbox setup
+
+This is the previous way to connect, from before the shared Dropbox app. It takes about 3 minutes. Open settings and choose **Use your own Dropbox app**. A saved personal app key is used instead of the shared one. The guide on that screen is:
+
+1. **Create your Dropbox app** at [dropbox.com/developers/apps/create](https://www.dropbox.com/developers/apps/create): choose **Scoped access**, **Full Dropbox**, and any unique name.
+2. **Turn on permissions**: on the app's **Permissions** tab, tick these four scopes and click **Submit**:
+   - `account_info.read`
+   - `files.metadata.read`
+   - `files.metadata.write`
+   - `files.content.write`
+3. **Add the redirect URI**: copy it from the guide (it looks like `https://<extension-id>.chromiumapp.org/dropbox`) and add it under **OAuth 2 → Redirect URIs** on the app's **Settings** tab. Turn on **Allow public clients**.
+4. **Paste your App key** from the app's **Settings** tab into the guide. Never paste the App secret.
+5. **Connect Dropbox** and click **Allow** in the Dropbox window.
+
+If connecting with your own app fails, the guide points to the step that most likely needs fixing (for example, a redirect URI mismatch points back to step 3).
+
+A source checkout with `WXT_DROPBOX_APP_KEY` left empty uses this path. Copy `.env.example` to `.env` and set the public app key when you want the 5 second connect in a local build. An unpacked extension loaded from a new folder gets a new extension id, so that redirect has to be registered on the Dropbox app too, or use this former setup.
 
 ## License
 

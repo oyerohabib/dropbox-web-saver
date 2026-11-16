@@ -25,7 +25,7 @@ npm run dev
 
 1. Run `npm run build`.
 2. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select `.output/chrome-mv3`.
-3. Follow the setup guide on the settings page to create your own Dropbox app and connect it.
+3. Open the extension settings and click **Connect Dropbox**. One-click connect needs `WXT_DROPBOX_APP_KEY` in a gitignored `.env` (copy `.env.example`) and that app's redirect URI must include this browser's extension id. Otherwise choose **Use your own Dropbox app** on the settings page.
 
 ## Scripts
 
@@ -52,7 +52,7 @@ CI runs the type check, tests, and build on every pull request, so run them loca
 - Match the surrounding code style. Reuse the components in `src/components/ui.tsx` and the CSS tokens in `src/assets/style.css` rather than adding new one-off styles.
 - If you change what data the extension stores or sends, update both `PRIVACY.md` and `src/entrypoints/privacy/App.tsx` so they stay in sync.
 - If you add a permission or host permission, explain why in the pull request and in the privacy policy.
-- Never commit a Dropbox app key, app secret, or access token.
+- Never commit a Dropbox app secret or access token. The public app key belongs in gitignored `.env` until you choose to ship it with a store build.
 
 ## Pull request checklist
 

@@ -72,8 +72,9 @@ SUPPORTED FILES
 Web Saver works with the common types of images, videos, audio, documents, archives and design files. Any image, video or audio you right-click is saved whatever its format. The full list is on the extension's settings page.
 
 PRIVATE BY DESIGN
-• You connect your own Dropbox app in about 3 minutes. A built-in guide walks you through each step with copy buttons.
-• Your app key and sign-in tokens stay in your browser. There is no Web Saver server, no analytics and no tracking.
+• Connect Dropbox in about 5 seconds. Sign in if asked, then click Allow.
+• Sign-in tokens stay in your browser. There is no Web Saver server, no analytics and no tracking.
+• Prefer your own Dropbox app? An optional guide takes about 3 minutes. That app key stays in your browser too.
 • Files go from the website or Dropbox straight into your Dropbox. The developer never sees them.
 • Web Saver asks Dropbox for permission to add files, not to read the files already in your Dropbox.
 
@@ -116,7 +117,7 @@ Web Saver saves files from web pages (images, videos, audio and linked files) in
 
 | Permission | Justification to paste |
 | --- | --- |
-| `storage` | Stores the user's Dropbox app key, Dropbox sign-in tokens, save preferences, last used folder and a list of the last 20 saves in chrome.storage on the user's device. None of it is sent to the developer. |
+| `storage` | Stores Dropbox sign-in tokens, save preferences, the last used folder and a list of the last 20 saves in chrome.storage on the user's device. A personal Dropbox app key is stored there only if the user chooses their own app instead of Web Saver's. None of it is sent to the developer. |
 | `contextMenus` | Adds the right-click items "Save this image/video/audio to Dropbox", "Save the file this link opens to Dropbox" and "Find files on this page to save to Dropbox", plus "Save preferences" on the toolbar icon's menu. These are the main way users start a save. |
 | `identity` | Uses chrome.identity.launchWebAuthFlow to show Dropbox's own OAuth sign-in window (with PKCE) and receive the authorization code at the extension's chromiumapp.org redirect URI. |
 | `scripting` | The extension has no content script that runs on its own. Only after the user picks a "Save … to Dropbox" right-click item or clicks "Scan this page", it injects its own bundled script into that tab to list the files on the page, download the chosen file with the page's login session when it isn't publicly reachable, and show a small "Saved to Dropbox" notice. No remote code is ever injected. |
@@ -157,28 +158,23 @@ The repository must stay public for this link to work. The same policy ships ins
 
 ## 7. Test instructions tab
 
-Reviewers can't test the extension without a connected Dropbox app, and an untestable extension is a common rejection reason. Give them a ready-made one:
+Reviewers need a Dropbox account they can sign in to. The published package already includes Web Saver's public app key, so they do not create an app or paste a key. Before you submit, register `https://<item-id>.chromiumapp.org/dropbox` on Web Saver's Dropbox app (Allow public clients on) and confirm **Connect Dropbox** works in the store build.
 
 1. Create a separate Dropbox account for reviewers (for example `websaver.review@<your-domain>`). Don't use your personal account.
-2. In that account, create a Dropbox app following the setup guide. Name it `Web Saver Review`, choose Scoped access and Full Dropbox, and tick the four permissions.
-3. Under **OAuth 2 → Redirect URIs**, add `https://<item-id>.chromiumapp.org/dropbox`, using the item ID from step 3.
-4. Copy the app's **App key** (not the secret).
-5. Paste this into the Test instructions tab, filling in the placeholders:
+2. Paste this into the Test instructions tab, filling in the placeholders:
 
 ```text
-Web Saver connects through a Dropbox app that each user creates in their own Dropbox account. To save time, use this pre-made test setup:
+Web Saver connects with Dropbox's own sign-in window. No app key is required.
 
 Dropbox test account: <reviewer email>
 Password: <password>
-App key: <app key>
 
-1. After installing, the settings page opens with a setup guide. Steps 1-3 are already done for this test account, so tick them or skip to step 4.
-2. Step 4: paste the app key above and click Save.
-3. Step 5: click Connect Dropbox and sign in with the test account, then click Allow.
-4. Open any web page with images (for example https://unsplash.com), right-click an image and choose "Save this image to Dropbox". The first save opens a window to pick a folder; click Save to Dropbox. A "Saved to Dropbox" notice appears on the page.
-5. To save several files: right-click an empty part of the page and choose "Find files on this page to save to Dropbox", tick some files and click "Save N files".
+1. After installing, the settings page opens. Click Connect Dropbox. This takes about 5 seconds.
+2. Sign in with the test account and click Allow.
+3. Open any web page with images (for example https://unsplash.com), right-click an image and choose "Save this image to Dropbox". The first save opens a window to pick a folder; click Save to Dropbox. A "Saved to Dropbox" notice appears on the page.
+4. To save several files: right-click an empty part of the page and choose "Find files on this page to save to Dropbox", tick some files and click "Save N files".
    If Dropbox can't fetch a file by itself, the save window asks to allow that file's site. Click "Allow access and save" and accept Chrome's prompt; access is limited to that one site.
-6. Saved files can be checked at https://www.dropbox.com/home after signing in with the test account.
+5. Saved files can be checked at https://www.dropbox.com/home after signing in with the test account.
 ```
 
 Keep 2-step verification off on the test Dropbox account, so reviewers can sign in with just the email and password. Before submitting, sign in once from a private browser window to confirm it works without a code.
@@ -192,8 +188,9 @@ Keep 2-step verification off on the test Dropbox account, so reviewers can sign 
 ## 9. After it's live
 
 - Add the store link to the top of the main README, for example with a "Get it on the Chrome Web Store" badge.
-- Anyone who used an unpacked copy before needs to add the published redirect URI (`https://<item-id>.chromiumapp.org/dropbox`) to their Dropbox app, because the store version has a different extension ID. The setup guide shows the right URI automatically.
-- Each user creates their own Dropbox app with a single user, so Dropbox's production approval for apps with many users never applies.
+- People who already connected with their own Dropbox app stay on that app after an update. They are not moved to the shared app, and they are not signed out. Their folder, preferences, and recent saves stay.
+- Someone who used their own app in an unpacked copy, then installs the store version, has a different extension id. They need to add `https://<item-id>.chromiumapp.org/dropbox` to that personal app, or clear the saved key and use **Connect Dropbox** on the shared app.
+- The shared app links many users, so Dropbox's production approval applies once it passes 50 linked users. Register the store redirect before publishing.
 
 ## Publishing an update
 
@@ -210,6 +207,6 @@ Keep 2-step verification off on the test Dropbox account, so reviewers can sign 
 | Trademark or impersonation | The name uses "for Dropbox", the icon is original rather than the Dropbox logo, and the listing and manifest say it isn't affiliated with Dropbox, Inc. |
 | Permissions not justified | Every permission has a justification above that matches what the code does. |
 | Missing or mismatched privacy disclosures | The data usage answers match the privacy policy, which is public and also bundled in the extension. |
-| Reviewer couldn't test it | Step 7 gives reviewers a ready-made Dropbox account and app key. |
+| Reviewer couldn't test it | Step 7 gives reviewers a Dropbox account. They click Connect Dropbox. The store redirect must already be on Web Saver's Dropbox app. |
 | Misleading screenshots | The screenshots are rendered from the real extension pages. Only the sample web page and data are made up. |
 | Keyword stuffing | The description is written for people and doesn't repeat search keywords. Don't list file extensions (jpg, png, pdf…) in the description; version 0.1.0 was rejected for that ("Yellow Argon"). |

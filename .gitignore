@@ -4,3 +4,6 @@ node_modules
 coverage
 dist
 store/
+.env
+.env.*
+!.env.example
