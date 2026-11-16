@@ -191,6 +191,10 @@ a:hover,
   color: var(--muted);
 }
 
+.watch-walkthrough {
+  margin-top: var(--space-3);
+}
+
 .page-nav {
   display: flex;
   flex-wrap: wrap;

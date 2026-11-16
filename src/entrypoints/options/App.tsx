@@ -4,7 +4,7 @@ import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
 import { SetupWizard } from "../../components/SetupWizard";
 import { WalkthroughCard } from "../../components/WalkthroughCard";
-import { Skeleton, StatusMessage, type StatusTone } from "../../components/ui";
+import { Button, Skeleton, StatusMessage, type StatusTone } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
 import { REPO_URL } from "../../lib/project";
 import { SUPPORTED_FILE_TYPES } from "../../lib/utils/file-types";
@@ -187,15 +187,12 @@ export function OptionsApp() {
               ? "Add your own Dropbox app below to start saving. Everything stays in this browser."
               : "Connect Dropbox to start saving. It usually takes about 5 seconds."
             : "Choose how saving works, manage your Dropbox connection, and review recent saves."}
-          {settings?.walkthroughHidden ? (
-            <>
-              {" "}
-              <button className="link-button" onClick={() => void setWalkthroughHidden(false)} type="button">
-                Watch the walkthrough
-              </button>
-            </>
-          ) : null}
         </p>
+        {settings?.walkthroughHidden ? (
+          <Button className="watch-walkthrough" onClick={() => void setWalkthroughHidden(false)} variant="secondary">
+            Watch the walkthrough
+          </Button>
+        ) : null}
       </section>
 
       {settings && !settings.walkthroughHidden ? (
