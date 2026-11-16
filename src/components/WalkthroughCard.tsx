@@ -1,3 +1,5 @@
+import { Button } from "./ui";
+
 const LOOM_SHARE_URL = "https://www.loom.com/share/c74743c06c9241ceb1d7588408c8e656";
 const LOOM_EMBED_URL = "https://www.loom.com/embed/c74743c06c9241ceb1d7588408c8e656";
 
@@ -9,9 +11,9 @@ export function WalkthroughCard({ onHide }: { onHide: () => void }) {
           <div className="section-title">How to use Web Saver</div>
           <div className="muted">A short walkthrough of connecting Dropbox and saving a file.</div>
         </div>
-        <button className="link-button" onClick={onHide} type="button">
+        <Button onClick={onHide} variant="secondary">
           Hide
-        </button>
+        </Button>
       </div>
       <div className="stack">
         <div className="walkthrough-frame">
