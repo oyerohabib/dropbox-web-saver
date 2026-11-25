@@ -57,6 +57,7 @@ describe("storage settings", () => {
       folderBehavior: "remember_last",
     });
     expect(settings.saveModeSetByUser).toBe(false);
+    expect(settings.lastUsedFolders).toEqual({ dropbox: null, google_drive: null });
   });
 
   it("treats settings saved before the save mode flag existed as not chosen by the user", async () => {
@@ -65,6 +66,15 @@ describe("storage settings", () => {
     const settings = await getSettings();
     expect(settings.saveModeSetByUser).toBe(false);
     expect(settings.walkthroughHidden).toBe(false);
+  });
+
+  it("migrates lastUsedFolderPath into lastUsedFolders.dropbox", async () => {
+    store.set("settings", { appKey: "dropbox-key", lastUsedFolderPath: "/Designs" });
+
+    const settings = await getSettings();
+    expect(settings.lastUsedFolders.dropbox).toBe("/Designs");
+    expect(settings.lastUsedFolders.google_drive).toBeNull();
+    expect(settings.lastUsedFolderPath).toBe("/Designs");
   });
 
   it("hides the walkthrough without dropping other settings", async () => {
@@ -83,6 +93,7 @@ describe("storage settings", () => {
     expect(nextSettings.walkthroughHidden).toBe(true);
     expect(nextSettings.appKey).toBe("dropbox-key");
     expect(nextSettings.lastUsedFolderPath).toBe("/Designs");
+    expect(nextSettings.lastUsedFolders.dropbox).toBe("/Designs");
     expect(nextSettings.savePreferences.saveMode).toBe("one_click");
   });
 
@@ -101,10 +112,16 @@ describe("storage settings", () => {
       savePreferences: {
         promptForRename: true,
       },
+      lastUsedFolders: { google_drive: "root" },
     });
 
     expect(nextSettings.appKey).toBe("dropbox-key");
     expect(nextSettings.lastUsedFolderPath).toBe("/Designs");
+    expect(nextSettings.lastUsedFolders).toEqual({
+      dropbox: "/Designs",
+      google_drive: "root",
+    });
+    expect(nextSettings.lastUsedFolderLabels.google_drive).toBeNull();
     expect(nextSettings.savePreferences).toEqual({
       saveMode: "one_click",
       promptForRename: true,
