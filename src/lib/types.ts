@@ -7,6 +7,7 @@ export type AssetTriggerKind =
   | "scan";
 export type SaveMode = "reviewed" | "one_click";
 export type FolderBehavior = "remember_last" | "always_ask";
+export type StorageProviderId = "dropbox" | "google_drive";
 
 export interface SavePreferences {
   saveMode: SaveMode;
@@ -32,6 +33,8 @@ export interface AssetCandidate {
 
 export interface SaveRequest {
   candidate: AssetCandidate;
+  provider?: StorageProviderId;
+  /** Dropbox path or Google Drive folder id. */
   destinationPath?: string | null;
   tabId?: number;
   forceFolderPicker?: boolean;
@@ -50,8 +53,10 @@ export interface SaveResult {
   method?: "url_import" | "direct_upload";
   path?: string;
   filename?: string;
+  provider?: StorageProviderId;
   errorCode?: SaveErrorCode;
   message: string;
+  folderLabel?: string;
   switchedToInstant?: boolean;
   /** Origin pattern (for example `https://cdn.example.com/*`) the user must allow before retrying. */
   permissionOrigin?: string;
@@ -59,6 +64,7 @@ export interface SaveResult {
 
 export type SaveErrorCode =
   | "APP_KEY_MISSING"
+  | "CLIENT_ID_MISSING"
   | "AUTH_REQUIRED"
   | "TOKEN_EXPIRED"
   | "UNSUPPORTED_TARGET"
@@ -77,6 +83,14 @@ export interface DropboxTokens {
   accountEmail?: string;
 }
 
+export interface GoogleDriveTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  accountEmail?: string;
+  scope?: string;
+}
+
 export type DropboxAppKeySource = "personal" | "builtin" | "none";
 
 export interface DropboxAuthState {
@@ -88,11 +102,26 @@ export interface DropboxAuthState {
   expiresAt?: number;
 }
 
+export interface GoogleDriveAuthState {
+  status: "missing_client_id" | "signed_out" | "signed_in";
+  clientId: string | null;
+  redirectUri: string;
+  accountEmail?: string;
+  expiresAt?: number;
+  needsReconnect?: boolean;
+}
+
+export interface CombinedAuthState {
+  dropbox: DropboxAuthState;
+  googleDrive: GoogleDriveAuthState;
+}
+
 export interface FolderEntry {
   id: string;
   name: string;
   pathLower: string;
   pathDisplay: string;
+  parentKey?: string | null;
 }
 
 export interface FolderSelectionState {
@@ -101,20 +130,30 @@ export interface FolderSelectionState {
   entries: FolderEntry[];
 }
 
+export interface LastUsedFolders {
+  dropbox: string | null;
+  google_drive: string | null;
+}
+
 export interface RecentSaveRecord {
   id: string;
   filename: string;
   sourceDomain: string;
   destinationPath: string;
+  destinationLabel?: string;
   success: boolean;
   timestamp: number;
   method?: "url_import" | "direct_upload";
+  provider?: StorageProviderId;
   message: string;
 }
 
 export interface ExtensionSettings {
   appKey: string | null;
+  /** @deprecated Prefer lastUsedFolders.dropbox; kept in sync for older UI code. */
   lastUsedFolderPath: string | null;
+  lastUsedFolders: LastUsedFolders;
+  lastUsedFolderLabels: LastUsedFolders;
   savePreferences: SavePreferences;
   saveModeSetByUser: boolean;
   walkthroughHidden: boolean;
@@ -129,6 +168,8 @@ export interface SetupProgress {
 export interface ExtensionSettingsPatch {
   appKey?: string | null;
   lastUsedFolderPath?: string | null;
+  lastUsedFolders?: Partial<LastUsedFolders>;
+  lastUsedFolderLabels?: Partial<LastUsedFolders>;
   savePreferences?: Partial<SavePreferences>;
   saveModeSetByUser?: boolean;
   walkthroughHidden?: boolean;
@@ -148,6 +189,8 @@ export interface PendingScanState {
   assets: AssetCandidate[];
   tabId?: number;
   destinationPath?: string | null;
+  destinations?: Partial<Record<StorageProviderId, string | null>>;
+  selectedProviders?: StorageProviderId[];
   selectedSourceUrl?: string | null;
   selectedFilename?: string | null;
   createdAt: number;
@@ -169,17 +212,23 @@ export type PendingSaveState = PendingSingleSaveState | PendingScanState;
 
 export type BackgroundMessage =
   | { type: "GET_AUTH_STATE" }
+  | { type: "GET_COMBINED_AUTH_STATE" }
   | { type: "CONNECT_DROPBOX" }
   | { type: "DISCONNECT_DROPBOX" }
+  | { type: "CONNECT_GOOGLE_DRIVE" }
+  | { type: "DISCONNECT_GOOGLE_DRIVE" }
+  | { type: "GET_GOOGLE_AUTH_STATE" }
   | { type: "GET_SETTINGS" }
   | { type: "SAVE_SETTINGS"; settings: ExtensionSettingsPatch }
-  | { type: "SET_LAST_USED_FOLDER"; path: string | null }
-  | { type: "LIST_FOLDERS"; path: string }
-  | { type: "CREATE_FOLDER"; parentPath: string; name: string }
+  | { type: "SET_LAST_USED_FOLDER"; path: string | null; provider?: StorageProviderId; label?: string | null }
+  | { type: "RESOLVE_FOLDER_LABEL"; path: string; provider?: StorageProviderId }
+  | { type: "LIST_FOLDERS"; path: string; provider?: StorageProviderId }
+  | { type: "CREATE_FOLDER"; parentPath: string; name: string; provider?: StorageProviderId }
   | { type: "GET_PENDING_SAVE" }
   | {
       type: "SAVE_PENDING";
       destinationPath: string;
+      provider?: StorageProviderId;
       candidate?: AssetCandidate;
       finalFilename?: string | null;
     }
@@ -206,6 +255,7 @@ export type ContentScriptMessage =
       url: string;
       referrer?: string;
     }
+  | { type: "RESOLVE_MEDIA_URL"; url: string }
   | {
       type: "SHOW_SAVE_STATUS";
       status: SaveToastStatus;
@@ -217,6 +267,7 @@ export interface SaveToastStatus {
   folderPath?: string;
   message?: string;
   dropboxUrl?: string;
+  openUrl?: string;
 }
 
 export interface ScanPageAssetsResponse {
