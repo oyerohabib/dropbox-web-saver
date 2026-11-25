@@ -6,12 +6,19 @@ import {
   fetchAssetBytesFromTab,
   getActiveTab,
   openPreferencesTab,
+  resolveMediaUrlFromTab,
   RestrictedPageError,
   sendMessageToTab,
 } from "../lib/browser";
 import { connectDropbox, disconnectDropbox, getAuthState } from "../lib/dropbox-auth";
+import {
+  connectGoogleDrive,
+  disconnectGoogleDrive,
+  getGoogleDriveAuthState,
+} from "../lib/google-drive-auth";
 import { UNINSTALL_FEEDBACK_URL } from "../lib/project";
-import { getCurrentAccount, listFolders } from "../lib/dropbox-api";
+import { getCurrentAccount } from "../lib/dropbox-api";
+import { getStorageProvider, listStorageProviders } from "../lib/providers";
 import {
   createFolderAndSelect,
   createPendingSave,
@@ -25,6 +32,7 @@ import {
   getSaveWindowId,
   getSettings,
   setLastResult,
+  setLastUsedFolder,
   setPendingSave,
   setSaveWindowId,
   setTokens,
@@ -36,41 +44,34 @@ import type {
   AssetTriggerKind,
   BackgroundErrorResponse,
   BackgroundMessage,
+  CombinedAuthState,
   ExtensionSettings,
   SaveRequest,
   SaveResult,
   SaveToastStatus,
   ScanPageAssetsResponse,
   StartScanFlowResponse,
+  StorageProviderId,
 } from "../lib/types";
 import { applyProbeResult, probeAssetMetadata } from "../lib/asset-probe";
 import { detectAssetType } from "../lib/utils/asset";
+import {
+  MENU_IDS,
+  parentMenuTitle,
+  parseProviderMenuId,
+  providerMenuId,
+} from "../lib/utils/context-menu";
 import { deriveCandidateFilename, hasExtension } from "../lib/utils/filename";
 import { markUserSaveModeChoice, shouldAutoSwitchToInstant } from "../lib/utils/save-mode";
-import { getDropboxWebUrl, getOriginPattern, isLikelyDirectAssetUrl } from "../lib/utils/url";
+import { isStreamedMediaUrl } from "../lib/utils/media-url";
+import { getOriginPattern, isLikelyDirectAssetUrl } from "../lib/utils/url";
 
-const MENU_IDS = {
-  image: "save-image-to-dropbox",
-  video: "save-video-to-dropbox",
-  audio: "save-audio-to-dropbox",
-  link: "save-link-to-dropbox",
-  scan: "scan-page-assets-for-dropbox",
-  preferences: "open-save-preferences",
-} as const;
-
-function getTriggerKind(menuItemId?: string): AssetTriggerKind | null {
-  switch (menuItemId) {
-    case MENU_IDS.image:
-      return "image";
-    case MENU_IDS.video:
-      return "video";
-    case MENU_IDS.audio:
-      return "audio";
-    case MENU_IDS.link:
-      return "linked_file";
-    default:
-      return null;
-  }
+async function getCombinedAuthState(): Promise<CombinedAuthState> {
+  const [dropbox, googleDrive] = await Promise.all([
+    getAuthState(),
+    getGoogleDriveAuthState(),
+  ]);
+  return { dropbox, googleDrive };
 }
 
 function buildCandidateFromContext(
@@ -166,13 +167,18 @@ async function showSaveStatusInTab(tabId: number | undefined, status: SaveToastS
 }
 
 function toastForResult(result: SaveResult, request: SaveRequest): SaveToastStatus {
-  const folderPath = request.destinationPath || "/";
+  const providerId = request.provider ?? result.provider ?? "dropbox";
+  const provider = getStorageProvider(providerId);
+  const folderPath = request.destinationPath || provider.getRootFolderKey();
+  const providerName = provider.displayName;
   if (result.ok) {
     return {
       state: "success",
       filename: result.filename,
-      folderPath,
-      dropboxUrl: getDropboxWebUrl(folderPath),
+      folderPath: result.folderLabel || provider.formatFolderLabel(folderPath),
+      dropboxUrl: providerId === "dropbox" ? provider.getWebUrl(folderPath) : undefined,
+      openUrl: provider.getWebUrl(folderPath),
+      message: `Saved to ${providerName}`,
     };
   }
   if (result.status === "needs_auth" || result.status === "needs_folder" || result.status === "needs_permission") {
@@ -194,6 +200,19 @@ async function reportUnsupportedTarget(message: string, tabId?: number): Promise
   return result;
 }
 
+function pageFetchHeaders(candidate: AssetCandidate): HeadersInit | undefined {
+  const pageUrl = candidate.referrer || candidate.pageUrl;
+  if (!pageUrl || !/^https?:/i.test(pageUrl)) return undefined;
+  try {
+    const origin = new URL(pageUrl).origin;
+    return {
+      Referer: `${origin}/`,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 async function fetchAssetBytesInBackground(
   candidate: AssetCandidate,
   includeCredentials: boolean,
@@ -201,6 +220,9 @@ async function fetchAssetBytesInBackground(
   try {
     const response = await fetch(candidate.sourceUrl, {
       credentials: includeCredentials ? "include" : "omit",
+      referrer: candidate.referrer || candidate.pageUrl || undefined,
+      referrerPolicy: "unsafe-url",
+      headers: pageFetchHeaders(candidate),
     });
     if (!response.ok) {
       return {
@@ -231,31 +253,45 @@ async function fetchAssetBytesInBackground(
 }
 
 async function fetchAssetBytes(candidate: AssetCandidate, tabId?: number): Promise<AssetFetchPayload> {
-  if (!candidate.requiresAuthenticatedFetch || !tabId) {
-    return fetchAssetBytesInBackground(candidate, candidate.requiresAuthenticatedFetch);
-  }
+  let current = candidate;
+  if (tabId) {
+    try {
+      const resolvedUrl = await resolveMediaUrlFromTab(tabId, candidate.sourceUrl);
+      if (resolvedUrl && resolvedUrl !== candidate.sourceUrl) {
+        current = { ...candidate, sourceUrl: resolvedUrl };
+      }
+    } catch {
+      // Keep the original URL if the page cannot offer a better file.
+    }
 
-  let tabError: string | undefined;
-  try {
-    const payload = await fetchAssetBytesFromTab(tabId, candidate.sourceUrl, candidate.referrer);
-    if (payload.ok) return payload;
-    tabError = payload.error;
-  } catch (error) {
-    tabError = error instanceof Error ? error.message : undefined;
-  }
+    let tabError: string | undefined;
+    try {
+      const payload = await fetchAssetBytesFromTab(tabId, current.sourceUrl, current.referrer);
+      if (payload.ok) return payload;
+      tabError = payload.error;
+    } catch (error) {
+      tabError = error instanceof Error ? error.message : undefined;
+    }
 
-  // blob: URLs only exist inside the page, so there is nothing to fall back to.
-  if (candidate.sourceUrl.startsWith("blob:")) {
+    if (isStreamedMediaUrl(current.sourceUrl) && current.sourceUrl.startsWith("blob:")) {
+      return {
+        ok: false,
+        status: 0,
+        contentType: null,
+        error: "Couldn't find this video's file on the page. Reload the page and try again.",
+      };
+    }
+
+    const fallback = await fetchAssetBytesInBackground(current, current.requiresAuthenticatedFetch);
+    if (fallback.ok) return fallback;
     return {
-      ok: false,
-      status: 0,
-      contentType: null,
-      error: tabError || "Could not read this asset from the page.",
+      ...fallback,
+      finalUrl: fallback.finalUrl || current.sourceUrl,
+      error: tabError || fallback.error,
     };
   }
 
-  const fallback = await fetchAssetBytesInBackground(candidate, true);
-  return fallback.ok ? fallback : { ...fallback, error: tabError || fallback.error };
+  return fetchAssetBytesInBackground(current, current.requiresAuthenticatedFetch);
 }
 
 async function findMissingSitePermission(url: string): Promise<string | null> {
@@ -268,14 +304,19 @@ async function executeSaveRequest(
   request: SaveRequest,
   options: { fromSaveWindow?: boolean } = {},
 ) {
-  const willUpload =
-    Boolean(request.destinationPath) && (await getAuthState()).status === "signed_in";
+  const providerId = request.provider ?? "dropbox";
+  const provider = getStorageProvider(providerId);
+  const authState = await provider.getAuthState();
+  const willUpload = Boolean(request.destinationPath) && authState.status === "signed_in";
   if (willUpload) {
+    const folderKey = request.destinationPath ?? provider.getRootFolderKey();
+    const folderPath = await provider.resolveFolderLabel(folderKey).catch(() => provider.formatFolderLabel(folderKey));
     await setBadge("…", "#0061FE");
     await showSaveStatusInTab(request.tabId, {
       state: "saving",
       filename: deriveCandidateFilename(request.candidate, request.finalFilename),
-      folderPath: request.destinationPath ?? "/",
+      folderPath,
+      message: `Saving to ${provider.displayName}…`,
     });
   }
 
@@ -368,8 +409,24 @@ async function describeCandidate(candidate: AssetCandidate, tabId?: number): Pro
 
 async function enrichCandidate(candidate: AssetCandidate, tabId?: number): Promise<AssetCandidate> {
   const described = await describeCandidate(candidate, tabId);
-  if (hasExtension(deriveCandidateFilename(described))) return described;
-  return applyProbeResult(described, await probeAssetMetadata(described));
+  let next = described;
+  if (tabId && isStreamedMediaUrl(next.sourceUrl)) {
+    try {
+      const resolvedUrl = await resolveMediaUrlFromTab(tabId, next.sourceUrl);
+      if (resolvedUrl && resolvedUrl !== next.sourceUrl) {
+        next = {
+          ...next,
+          sourceUrl: resolvedUrl,
+          requiresAuthenticatedFetch:
+            resolvedUrl.startsWith("blob:") || resolvedUrl.startsWith("data:"),
+        };
+      }
+    } catch {
+      // Keep the original URL if the page cannot offer a better file.
+    }
+  }
+  if (hasExtension(deriveCandidateFilename(next))) return next;
+  return applyProbeResult(next, await probeAssetMetadata(next));
 }
 
 async function startScanFlow(): Promise<StartScanFlowResponse> {
@@ -398,12 +455,15 @@ async function startScanFlow(): Promise<StartScanFlowResponse> {
   }
 
   const settings = await getSettings();
+  const askEveryTime = settings.savePreferences.folderBehavior === "always_ask";
   const flow = createPendingScanState(
     assets,
     activeTab.id,
-    settings.savePreferences.folderBehavior === "always_ask"
-      ? null
-      : settings.lastUsedFolderPath,
+    {
+      dropbox: askEveryTime ? null : settings.lastUsedFolders.dropbox,
+      google_drive: askEveryTime ? null : settings.lastUsedFolders.google_drive,
+    },
+    ["dropbox"],
   );
   await setPendingSave(flow);
   await openSaveWindow();
@@ -412,29 +472,37 @@ async function startScanFlow(): Promise<StartScanFlowResponse> {
 
 async function initializeContextMenus() {
   await chrome.contextMenus.removeAll();
-  chrome.contextMenus.create({
-    id: MENU_IDS.image,
-    title: "Save this image to Dropbox",
-    contexts: ["image"],
-  });
-  chrome.contextMenus.create({
-    id: MENU_IDS.video,
-    title: "Save this video to Dropbox",
-    contexts: ["video"],
-  });
-  chrome.contextMenus.create({
-    id: MENU_IDS.audio,
-    title: "Save this audio to Dropbox",
-    contexts: ["audio"],
-  });
-  chrome.contextMenus.create({
-    id: MENU_IDS.link,
-    title: "Save the file this link opens to Dropbox",
-    contexts: ["link"],
-  });
+
+  const parents: Array<{
+    id: string;
+    title: string;
+    contexts: chrome.contextMenus.CreateProperties["contexts"];
+  }> = [
+    { id: MENU_IDS.image, title: parentMenuTitle("image"), contexts: ["image"] },
+    { id: MENU_IDS.video, title: parentMenuTitle("video"), contexts: ["video"] },
+    { id: MENU_IDS.audio, title: parentMenuTitle("audio"), contexts: ["audio"] },
+    { id: MENU_IDS.link, title: parentMenuTitle("link"), contexts: ["link"] },
+  ];
+
+  for (const parent of parents) {
+    chrome.contextMenus.create({
+      id: parent.id,
+      title: parent.title,
+      contexts: parent.contexts,
+    });
+    for (const provider of listStorageProviders()) {
+      chrome.contextMenus.create({
+        id: providerMenuId(parent.id, provider.id),
+        parentId: parent.id,
+        title: provider.displayName,
+        contexts: parent.contexts,
+      });
+    }
+  }
+
   chrome.contextMenus.create({
     id: MENU_IDS.scan,
-    title: "Find files on this page to save to Dropbox",
+    title: "Find files on this page…",
     contexts: ["page", "selection"],
   });
   chrome.contextMenus.create({
@@ -478,8 +546,9 @@ export default defineBackground(() => {
         return;
       }
 
-      const triggerKind = getTriggerKind(String(info.menuItemId));
-      if (!triggerKind) return;
+      const parsed = parseProviderMenuId(String(info.menuItemId));
+      if (!parsed) return;
+      const { triggerKind, provider } = parsed;
 
       const candidate = buildCandidateFromContext(info, triggerKind);
       if (!candidate) return;
@@ -504,12 +573,14 @@ export default defineBackground(() => {
       }
 
       const settings = await getSettings();
+      const folderKey =
+        settings.savePreferences.folderBehavior === "always_ask"
+          ? null
+          : settings.lastUsedFolders[provider];
       await queueSaveFlow({
         candidate: enrichedCandidate,
-        destinationPath:
-          settings.savePreferences.folderBehavior === "always_ask"
-            ? null
-            : settings.lastUsedFolderPath,
+        provider,
+        destinationPath: folderKey,
         tabId: tab?.id,
       }, settings, { reason: "context_review" });
     })();
@@ -521,6 +592,12 @@ export default defineBackground(() => {
         case "GET_AUTH_STATE":
           sendResponse(await getAuthState());
           return;
+        case "GET_COMBINED_AUTH_STATE":
+          sendResponse(await getCombinedAuthState());
+          return;
+        case "GET_GOOGLE_AUTH_STATE":
+          sendResponse(await getGoogleDriveAuthState());
+          return;
         case "CONNECT_DROPBOX":
           await connectDropbox();
           await getCurrentAccount().catch(() => undefined);
@@ -528,6 +605,14 @@ export default defineBackground(() => {
           return;
         case "DISCONNECT_DROPBOX":
           await disconnectDropbox();
+          sendResponse({ ok: true });
+          return;
+        case "CONNECT_GOOGLE_DRIVE":
+          await connectGoogleDrive();
+          sendResponse(await getGoogleDriveAuthState());
+          return;
+        case "DISCONNECT_GOOGLE_DRIVE":
+          await disconnectGoogleDrive();
           sendResponse({ ok: true });
           return;
         case "GET_SETTINGS":
@@ -544,15 +629,52 @@ export default defineBackground(() => {
           sendResponse(await updateSettings(markUserSaveModeChoice(message.settings)));
           return;
         }
-        case "LIST_FOLDERS":
-          sendResponse(await listFolders(message.path));
+        case "LIST_FOLDERS": {
+          const providerId = message.provider ?? "dropbox";
+          sendResponse(await getStorageProvider(providerId).listFolders(message.path));
           return;
-        case "SET_LAST_USED_FOLDER":
-          sendResponse(await updateSettings({ lastUsedFolderPath: message.path }));
+        }
+        case "SET_LAST_USED_FOLDER": {
+          const providerId = message.provider ?? "dropbox";
+          const label = message.label
+            ?? await getStorageProvider(providerId)
+              .resolveFolderLabel(message.path ?? "")
+              .catch(() => message.path);
+          const settings = await setLastUsedFolder(providerId, message.path, label);
+          const pending = await getPendingSave();
+          if (pending?.mode === "single" && (pending.request.provider ?? "dropbox") === providerId) {
+            await setPendingSave({
+              ...pending,
+              request: {
+                ...pending.request,
+                destinationPath: message.path,
+                forceFolderPicker: false,
+              },
+            });
+          } else if (pending?.mode === "scan") {
+            await setPendingSave({
+              ...pending,
+              destinationPath: providerId === "dropbox" ? message.path : pending.destinationPath,
+              destinations: {
+                dropbox: pending.destinations?.dropbox ?? null,
+                google_drive: pending.destinations?.google_drive ?? null,
+                [providerId]: message.path,
+              },
+            });
+          }
+          sendResponse(settings);
           return;
-        case "CREATE_FOLDER":
-          sendResponse(await createFolderAndSelect(message.parentPath, message.name));
+        }
+        case "RESOLVE_FOLDER_LABEL": {
+          const providerId = message.provider ?? "dropbox";
+          sendResponse(await getStorageProvider(providerId).resolveFolderLabel(message.path));
           return;
+        }
+        case "CREATE_FOLDER": {
+          const providerId = message.provider ?? "dropbox";
+          sendResponse(await createFolderAndSelect(message.parentPath, message.name, providerId));
+          return;
+        }
         case "GET_PENDING_SAVE":
           sendResponse(await getPendingSave());
           return;
@@ -566,6 +688,11 @@ export default defineBackground(() => {
             } satisfies SaveResult);
             return;
           }
+
+          const providerId: StorageProviderId =
+            message.provider
+            ?? (pending.mode === "single" ? pending.request.provider : undefined)
+            ?? "dropbox";
 
           if (pending.mode === "scan") {
             const selectedCandidate = message.candidate
@@ -582,6 +709,7 @@ export default defineBackground(() => {
             }
             const result = await saveFromReviewWindow({
               candidate: selectedCandidate,
+              provider: providerId,
               destinationPath: message.destinationPath,
               tabId: pending.tabId,
               finalFilename: message.finalFilename,
@@ -595,6 +723,7 @@ export default defineBackground(() => {
           sendResponse(
             await saveFromReviewWindow({
               ...pending.request,
+              provider: providerId,
               destinationPath: message.destinationPath,
               finalFilename: message.finalFilename ?? pending.request.finalFilename,
             }),
