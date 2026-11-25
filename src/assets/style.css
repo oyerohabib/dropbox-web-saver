@@ -133,6 +133,28 @@ a:hover,
   gap: var(--space-2);
 }
 
+.connect-providers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5) var(--space-4);
+  align-items: start;
+}
+
+.connect-providers .brand-connect-button {
+  width: 100%;
+}
+
+.connect-privacy {
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .connect-providers {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
 .options-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -417,9 +439,43 @@ a:hover,
 .primary-button:disabled,
 .secondary-button:disabled,
 .ghost-button:disabled,
-.icon-button:disabled {
+.icon-button:disabled,
+.brand-connect-button:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+.brand-connect-button {
+  gap: 10px;
+}
+
+.brand-connect-button .brand-mark {
+  flex: none;
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.brand-connect-button.dropbox {
+  background: #0061ff;
+  color: #ffffff;
+}
+
+.brand-connect-button.dropbox:hover:not(:disabled) {
+  background: #0052d6;
+}
+
+.brand-connect-button.google-drive {
+  background: #ffffff;
+  border-color: #dadce0;
+  color: #3c4043;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.12);
+}
+
+.brand-connect-button.google-drive:hover:not(:disabled) {
+  background: #f8f9fa;
+  border-color: #dadce0;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.18);
 }
 
 /* Spinner and skeleton */

@@ -1,3 +1,4 @@
+import { DropboxMark } from "./BrandMarks";
 import { Button, StatusMessage } from "./ui";
 import type { DropboxAuthState } from "../lib/types";
 
@@ -14,12 +15,6 @@ interface DropboxConnectCardProps {
   onUseOwnApp?: () => void;
 }
 
-function appSourceLine(authState: DropboxAuthState): string | null {
-  if (authState.appKeySource === "personal") return "Using your own Dropbox app.";
-  if (authState.appKeySource === "builtin") return "Using Web Saver's Dropbox app.";
-  return null;
-}
-
 export function DropboxConnectCard({
   authState,
   connecting = false,
@@ -34,7 +29,6 @@ export function DropboxConnectCard({
 }: DropboxConnectCardProps) {
   const signedIn = authState.status === "signed_in";
   const missingKey = authState.status === "missing_app_key";
-  const sourceLine = appSourceLine(authState);
   const ownAppLabel = ownAppOpen
     ? "Hide your own Dropbox app"
     : authState.appKeySource === "personal"
@@ -50,7 +44,7 @@ export function DropboxConnectCard({
       <div className="stack">
         <div className="row row-between">
           <span className="muted truncate">
-            Signed in{authState.accountEmail ? ` as ${authState.accountEmail}` : ""}
+            Dropbox{authState.accountEmail ? ` · ${authState.accountEmail}` : ""}
           </span>
           {onDisconnect ? (
             <Button loading={disconnecting} onClick={onDisconnect} variant="ghost">
@@ -66,7 +60,7 @@ export function DropboxConnectCard({
   return (
     <div className="stack">
       <div className="row row-between">
-        <div className="section-title">{signedIn ? "Dropbox connection" : "Connect Dropbox"}</div>
+        <div className="section-title">{signedIn ? "Dropbox" : "Connect Dropbox"}</div>
         {signedIn ? (
           <span className="badge success">
             <span className="status-dot" />
@@ -79,11 +73,9 @@ export function DropboxConnectCard({
         {signedIn
           ? `Signed in${authState.accountEmail ? ` as ${authState.accountEmail}` : ""}.`
           : missingKey
-            ? "This copy of Web Saver has no Dropbox app key. Create your own Dropbox app to connect."
-            : "A Dropbox window opens. Sign in if asked, then click Allow. This usually takes about 5 seconds."}
+            ? "Add your own Dropbox app key in settings to connect."
+            : "Sign in, then click Allow."}
       </div>
-
-      {sourceLine ? <div className="muted">{sourceLine}</div> : null}
 
       {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
 
@@ -94,7 +86,14 @@ export function DropboxConnectCard({
           </Button>
         ) : null}
         {!signedIn && !missingKey && onConnect ? (
-          <Button block={layout === "popup"} large loading={connecting} onClick={onConnect}>
+          <Button
+            block
+            className="brand-connect-button dropbox"
+            large
+            loading={connecting}
+            onClick={onConnect}
+          >
+            {!connecting ? <DropboxMark /> : null}
             Connect Dropbox
           </Button>
         ) : null}
@@ -110,10 +109,6 @@ export function DropboxConnectCard({
         ) : null}
       </div>
 
-      <div className="muted">
-        Tokens stay in this browser. There is no Web Saver server.{" "}
-        <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
-      </div>
       {showOwnAppLink ? (
         <div className="muted">
           <button className="link-button" onClick={onUseOwnApp} type="button">
