@@ -12,7 +12,7 @@ export default defineConfig({
     name: "Web Saver for Dropbox",
     short_name: "Web Saver",
     description:
-      "Save images, videos, audio and files from any web page straight to your Dropbox or Google Drive. Not affiliated with Dropbox, Inc. or Google.",
+      "Save images, videos, audio and files from any page to Dropbox or Google Drive. Not affiliated with Dropbox, Inc. or Google.",
     permissions: ["storage", "contextMenus", "identity", "scripting", "activeTab"],
     host_permissions: [
       "https://www.googleapis.com/*",

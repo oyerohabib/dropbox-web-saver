@@ -103,7 +103,7 @@ Web Saver for Dropbox is an independent project and is not affiliated with or en
 The listing's title and summary come from the manifest, so they aren't edited here:
 
 - Title: `Web Saver for Dropbox`
-- Summary: `Save images, videos, audio and files from any web page straight to your Dropbox. Not affiliated with Dropbox, Inc.`
+- Summary: `Save images, videos, audio and files from any page to Dropbox or Google Drive. Not affiliated with Dropbox, Inc. or Google.`
 
 ## 5. Privacy tab
 
