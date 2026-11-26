@@ -40,6 +40,7 @@ const defaultSettings: ExtensionSettings = {
   lastUsedFolderPath: null,
   lastUsedFolders: { ...defaultLastUsedFolders },
   lastUsedFolderLabels: { ...defaultLastUsedFolders },
+  lastUsedProvider: null,
   savePreferences: {
     saveMode: "reviewed",
     promptForRename: false,
@@ -81,6 +82,7 @@ export function migrateSettings(stored: Partial<ExtensionSettings> = {}): Extens
     ...stored,
     lastUsedFolders,
     lastUsedFolderLabels,
+    lastUsedProvider: stored.lastUsedProvider ?? null,
     lastUsedFolderPath: lastUsedFolders.dropbox,
     savePreferences: {
       ...defaultSettings.savePreferences,
@@ -142,6 +144,7 @@ export async function setLastUsedFolder(
   return updateSettings({
     lastUsedFolders: { [provider]: folderKey },
     lastUsedFolderLabels: { [provider]: label ?? (provider === "dropbox" ? folderKey : null) },
+    lastUsedProvider: provider,
     ...(provider === "dropbox" ? { lastUsedFolderPath: folderKey } : {}),
   });
 }

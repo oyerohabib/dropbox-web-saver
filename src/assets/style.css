@@ -73,6 +73,26 @@ a:hover,
   cursor: default;
 }
 
+.quiet-link {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.quiet-link:hover:not(:disabled) {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.quiet-link:disabled {
+  cursor: default;
+}
+
 :focus-visible {
   outline: none;
   box-shadow: var(--focus);
@@ -127,6 +147,25 @@ a:hover,
   justify-content: space-between;
 }
 
+.provider-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.row-between > .provider-name {
+  flex: 1;
+}
+
+.provider-name .brand-mark {
+  flex: none;
+}
+
+.provider-name.dropbox .brand-mark {
+  color: #0061ff;
+}
+
 .actions-wrap {
   display: flex;
   flex-wrap: wrap;
@@ -152,6 +191,93 @@ a:hover,
   .connect-providers {
     grid-template-columns: 1fr;
     gap: var(--space-4);
+  }
+}
+
+.destination-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.destination-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.destination-card:hover {
+  border-color: var(--accent);
+  background: rgba(0, 97, 254, 0.03);
+}
+
+.destination-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.destination-card.disconnected {
+  background: var(--surface-muted);
+}
+
+.destination-card input {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+}
+
+.destination-mark {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.destination-mark.sm {
+  width: 28px;
+  height: 28px;
+}
+
+.destination-mark.dropbox {
+  color: #0061ff;
+  background: rgba(0, 97, 255, 0.1);
+}
+
+.destination-mark.google-drive {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #e3e8ef;
+}
+
+.destination-mark .brand-mark {
+  display: block;
+}
+
+.destination-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+@media (max-width: 480px) {
+  .destination-grid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -1,4 +1,4 @@
-import { GoogleDriveMark } from "./BrandMarks";
+import { GoogleDriveMark, ProviderName } from "./BrandMarks";
 import { Button, StatusMessage } from "./ui";
 import type { GoogleDriveAuthState } from "../lib/types";
 
@@ -29,13 +29,18 @@ export function GoogleDriveConnectCard({
     return (
       <div className="stack">
         <div className="row row-between">
-          <span className="muted truncate">
+          <ProviderName className="muted" provider="google_drive">
             Google Drive{authState.accountEmail ? ` · ${authState.accountEmail}` : ""}
-          </span>
+          </ProviderName>
           {onDisconnect ? (
-            <Button loading={disconnecting} onClick={onDisconnect} variant="ghost">
-              Disconnect
-            </Button>
+            <button
+              className="quiet-link"
+              disabled={disconnecting}
+              onClick={onDisconnect}
+              type="button"
+            >
+              {disconnecting ? "Disconnecting…" : "Disconnect"}
+            </button>
           ) : null}
         </div>
         {needsReconnect ? (
@@ -62,7 +67,9 @@ export function GoogleDriveConnectCard({
   return (
     <div className="stack">
       <div className="row row-between">
-        <div className="section-title">{signedIn ? "Google Drive" : "Connect Google Drive"}</div>
+        <div className="section-title">
+          <ProviderName provider="google_drive">{signedIn ? "Google Drive" : "Connect Google Drive"}</ProviderName>
+        </div>
         {signedIn ? (
           <span className="badge success">
             <span className="status-dot" />

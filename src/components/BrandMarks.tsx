@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+import type { StorageProviderId } from "../lib/types";
+
 /** Compact marks for connect buttons. Decorative; buttons keep their text labels. */
 
 export function DropboxMark({ size = 20 }: { size?: number }) {
@@ -33,5 +36,36 @@ export function GoogleDriveMark({ size = 20 }: { size?: number }) {
       <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc" />
       <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00" />
     </svg>
+  );
+}
+
+export function ProviderMark({
+  provider,
+  size = 20,
+}: {
+  provider: StorageProviderId;
+  size?: number;
+}) {
+  return provider === "dropbox" ? <DropboxMark size={size} /> : <GoogleDriveMark size={size} />;
+}
+
+export function ProviderName({
+  provider,
+  size = 16,
+  className,
+  children,
+}: {
+  provider: StorageProviderId;
+  size?: number;
+  className?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <span className={`provider-name${provider === "dropbox" ? " dropbox" : ""}${className ? ` ${className}` : ""}`}>
+      <ProviderMark provider={provider} size={size} />
+      <span className="truncate">
+        {children ?? (provider === "dropbox" ? "Dropbox" : "Google Drive")}
+      </span>
+    </span>
   );
 }

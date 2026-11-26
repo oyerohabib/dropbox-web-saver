@@ -6,6 +6,7 @@ import {
   getRecentSaves,
   getSettings,
   getSetupProgress,
+  setLastUsedFolder,
   setSetupProgress,
   updateSettings,
 } from "./storage";
@@ -58,6 +59,7 @@ describe("storage settings", () => {
     });
     expect(settings.saveModeSetByUser).toBe(false);
     expect(settings.lastUsedFolders).toEqual({ dropbox: null, google_drive: null });
+    expect(settings.lastUsedProvider).toBeNull();
   });
 
   it("treats settings saved before the save mode flag existed as not chosen by the user", async () => {
@@ -122,11 +124,21 @@ describe("storage settings", () => {
       google_drive: "root",
     });
     expect(nextSettings.lastUsedFolderLabels.google_drive).toBeNull();
+    expect(nextSettings.lastUsedProvider).toBeNull();
     expect(nextSettings.savePreferences).toEqual({
       saveMode: "one_click",
       promptForRename: true,
       folderBehavior: "remember_last",
     });
+  });
+
+  it("remembers the last storage a folder was saved to", async () => {
+    await setLastUsedFolder("google_drive", "folder-1", "Projects");
+
+    const settings = await getSettings();
+    expect(settings.lastUsedProvider).toBe("google_drive");
+    expect(settings.lastUsedFolders.google_drive).toBe("folder-1");
+    expect(settings.lastUsedFolderLabels.google_drive).toBe("Projects");
   });
 });
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { sendBackgroundMessage } from "../lib/browser";
 import { STORAGE_KEYS } from "../lib/storage";
 import type { ExtensionSettings, FolderBehavior, SaveMode, SavePreferences } from "../lib/types";
+import { ProviderName } from "./BrandMarks";
 import { Button, SegmentedControl, Skeleton, StatusMessage, Toggle } from "./ui";
 
 interface PreferencesFormProps {
@@ -112,7 +113,7 @@ export function PreferencesForm({ variant, onChooseFolder, onReady }: Preference
       <div className="stack-sm">
         <div className="row row-between">
           <div className="row" style={{ minWidth: 0 }}>
-            <span className="muted nowrap">Dropbox folder</span>
+            <ProviderName className="muted" provider="dropbox">Dropbox folder</ProviderName>
             <span className="path-pill" title={settings.lastUsedFolders.dropbox ?? undefined}>
               {settings.lastUsedFolders.dropbox || "Not set"}
             </span>
@@ -123,7 +124,7 @@ export function PreferencesForm({ variant, onChooseFolder, onReady }: Preference
         </div>
         <div className="row row-between">
           <div className="row" style={{ minWidth: 0 }}>
-            <span className="muted nowrap">Google Drive folder</span>
+            <ProviderName className="muted" provider="google_drive">Google Drive folder</ProviderName>
             <span className="path-pill" title={settings.lastUsedFolders.google_drive ?? undefined}>
               {settings.lastUsedFolderLabels.google_drive
                 || (settings.lastUsedFolders.google_drive === "root" ? "My Drive (top level)" : null)

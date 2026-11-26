@@ -64,6 +64,7 @@ import {
 import { deriveCandidateFilename, hasExtension } from "../lib/utils/filename";
 import { markUserSaveModeChoice, shouldAutoSwitchToInstant } from "../lib/utils/save-mode";
 import { isStreamedMediaUrl } from "../lib/utils/media-url";
+import { defaultScanDestinations } from "../lib/utils/scan-destinations";
 import { getOriginPattern, isLikelyDirectAssetUrl } from "../lib/utils/url";
 
 async function getCombinedAuthState(): Promise<CombinedAuthState> {
@@ -454,7 +455,7 @@ async function startScanFlow(): Promise<StartScanFlowResponse> {
     };
   }
 
-  const settings = await getSettings();
+  const [settings, auth] = await Promise.all([getSettings(), getCombinedAuthState()]);
   const askEveryTime = settings.savePreferences.folderBehavior === "always_ask";
   const flow = createPendingScanState(
     assets,
@@ -463,7 +464,11 @@ async function startScanFlow(): Promise<StartScanFlowResponse> {
       dropbox: askEveryTime ? null : settings.lastUsedFolders.dropbox,
       google_drive: askEveryTime ? null : settings.lastUsedFolders.google_drive,
     },
-    ["dropbox"],
+    defaultScanDestinations({
+      dropboxConnected: auth.dropbox.status === "signed_in",
+      driveConnected: auth.googleDrive.status === "signed_in" && !auth.googleDrive.needsReconnect,
+      lastUsedProvider: settings.lastUsedProvider,
+    }),
   );
   await setPendingSave(flow);
   await openSaveWindow();

@@ -66,7 +66,7 @@ export function createPendingScanState(
   assets: AssetCandidate[],
   tabId?: number,
   destinations?: Partial<Record<StorageProviderId, string | null>>,
-  selectedProviders: StorageProviderId[] = ["dropbox"],
+  selectedProviders: StorageProviderId[] = ["google_drive"],
 ): PendingScanState {
   const dropboxPath = destinations?.dropbox ?? null;
   return {

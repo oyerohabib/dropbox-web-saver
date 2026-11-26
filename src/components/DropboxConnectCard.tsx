@@ -1,4 +1,4 @@
-import { DropboxMark } from "./BrandMarks";
+import { DropboxMark, ProviderName } from "./BrandMarks";
 import { Button, StatusMessage } from "./ui";
 import type { DropboxAuthState } from "../lib/types";
 
@@ -43,13 +43,18 @@ export function DropboxConnectCard({
     return (
       <div className="stack">
         <div className="row row-between">
-          <span className="muted truncate">
+          <ProviderName className="muted" provider="dropbox">
             Dropbox{authState.accountEmail ? ` · ${authState.accountEmail}` : ""}
-          </span>
+          </ProviderName>
           {onDisconnect ? (
-            <Button loading={disconnecting} onClick={onDisconnect} variant="ghost">
-              Disconnect
-            </Button>
+            <button
+              className="quiet-link"
+              disabled={disconnecting}
+              onClick={onDisconnect}
+              type="button"
+            >
+              {disconnecting ? "Disconnecting…" : "Disconnect"}
+            </button>
           ) : null}
         </div>
         {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
@@ -60,7 +65,9 @@ export function DropboxConnectCard({
   return (
     <div className="stack">
       <div className="row row-between">
-        <div className="section-title">{signedIn ? "Dropbox" : "Connect Dropbox"}</div>
+        <div className="section-title">
+          <ProviderName provider="dropbox">{signedIn ? "Dropbox" : "Connect Dropbox"}</ProviderName>
+        </div>
         {signedIn ? (
           <span className="badge success">
             <span className="status-dot" />

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ProviderMark, ProviderName } from "../../components/BrandMarks";
 import { DropboxConnectCard } from "../../components/DropboxConnectCard";
 import { FolderPicker } from "../../components/FolderPicker";
 import { GoogleDriveConnectCard } from "../../components/GoogleDriveConnectCard";
@@ -14,6 +15,7 @@ import { getStorageProvider, listStorageProviders, providerDisplayName } from ".
 import { isSmallAsset } from "../../lib/utils/asset";
 import { summarizeBatch, type BatchItemResult, type BatchSummary } from "../../lib/utils/batch";
 import { deriveCandidateFilename } from "../../lib/utils/filename";
+import { defaultScanDestinations } from "../../lib/utils/scan-destinations";
 import { getDomain, getPatternHost } from "../../lib/utils/url";
 import type {
   AssetCandidate,
@@ -96,7 +98,7 @@ export function SaveApp() {
   const [saveFlow, setSaveFlow] = useState<PendingSaveState | null>(null);
   const [destinations, setDestinations] = useState<DestinationMap>(emptyDestinations);
   const [destinationLabels, setDestinationLabels] = useState<DestinationMap>(emptyDestinations);
-  const [selectedProviders, setSelectedProviders] = useState<StorageProviderId[]>(["dropbox"]);
+  const [selectedProviders, setSelectedProviders] = useState<StorageProviderId[]>(["google_drive"]);
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(() => new Set());
   const [showSmallImages, setShowSmallImages] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
@@ -129,7 +131,7 @@ export function SaveApp() {
   const activeProviders: StorageProviderId[] =
     saveFlow?.mode === "scan" ? selectedProviders : saveFlow?.mode === "single" ? [singleProvider] : ["dropbox"];
 
-  async function load() {
+  async function load(options: { resetProviders?: boolean } = {}) {
     const [nextAuth, nextSaveFlow, settings] = await Promise.all([
       sendBackgroundMessage<CombinedAuthState>({ type: "GET_COMBINED_AUTH_STATE" }),
       sendBackgroundMessage<PendingSaveState | null>({ type: "GET_PENDING_SAVE" }),
@@ -169,8 +171,17 @@ export function SaveApp() {
           : null,
     });
 
-    if (nextSaveFlow?.mode === "scan") {
-      setSelectedProviders(nextSaveFlow.selectedProviders?.length ? nextSaveFlow.selectedProviders : ["dropbox"]);
+    if (nextSaveFlow?.mode === "scan" && options.resetProviders !== false) {
+      setSelectedProviders(
+        nextSaveFlow.selectedProviders?.length
+          ? nextSaveFlow.selectedProviders
+          : defaultScanDestinations({
+              dropboxConnected: nextAuth.dropbox.status === "signed_in",
+              driveConnected:
+                nextAuth.googleDrive.status === "signed_in" && !nextAuth.googleDrive.needsReconnect,
+              lastUsedProvider: settings.lastUsedProvider,
+            }),
+      );
     }
 
     setFilenameDraft(
@@ -266,7 +277,7 @@ export function SaveApp() {
         await sendBackgroundMessage<GoogleDriveAuthState>({ type: "CONNECT_GOOGLE_DRIVE" });
         setStatus({ tone: "success", text: "Google Drive connected." });
       }
-      await load();
+      await load({ resetProviders: false });
     } catch (error) {
       setStatus({
         tone: "error",
@@ -485,7 +496,7 @@ export function SaveApp() {
           return (
             <div className="row row-between" key={provider}>
               <div className="row" style={{ minWidth: 0 }}>
-                <span className="muted">{providerDisplayName(provider)}</span>
+                <ProviderName className="muted" provider={provider} />
                 <span className="path-pill" title={path || undefined}>
                   {folderLabel(provider, path, destinationLabels[provider])}
                 </span>
@@ -670,7 +681,7 @@ export function SaveApp() {
             <div className="stack-sm">
               {listStorageProviders().map((provider) => (
                 <div className="row current-default" key={provider.id}>
-                  <span className="muted">{provider.displayName}</span>
+                  <ProviderName className="muted" provider={provider.id} />
                   {defaultFolders[provider.id] ? (
                     <span className="path-pill" title={defaultFolders[provider.id] ?? undefined}>
                       {folderLabel(
@@ -737,20 +748,43 @@ export function SaveApp() {
 
       {saveFlow?.mode === "scan" ? (
         <section className="panel stack">
-          <div className="section-title">Save to</div>
-          <div className="muted">Select at least one destination.</div>
-          <div className="stack-sm">
-            {listStorageProviders().map((provider) => (
-              <label className="asset-toolbar-toggle" key={provider.id}>
-                <input
-                  checked={selectedProviders.includes(provider.id)}
-                  disabled={saving}
-                  onChange={() => toggleProvider(provider.id)}
-                  type="checkbox"
-                />
-                {provider.displayName}
-              </label>
-            ))}
+          <div>
+            <div className="section-title">Save to</div>
+            <div className="muted">Choose Dropbox, Google Drive, or both.</div>
+          </div>
+          <div className="destination-grid">
+            {listStorageProviders().map((provider) => {
+              const selected = selectedProviders.includes(provider.id);
+              const connected = isSignedIn(provider.id);
+              return (
+                <label
+                  className={`destination-card${selected ? " selected" : ""}${connected ? "" : " disconnected"}`}
+                  key={provider.id}
+                >
+                  <input
+                    checked={selected}
+                    disabled={saving}
+                    onChange={() => toggleProvider(provider.id)}
+                    type="checkbox"
+                  />
+                  <span className={`destination-mark ${provider.id === "dropbox" ? "dropbox" : "google-drive"}`}>
+                    <ProviderMark provider={provider.id} size={20} />
+                  </span>
+                  <span className="destination-copy">
+                    <strong>{provider.displayName}</strong>
+                    <span className="muted truncate">
+                      {connected
+                        ? folderLabel(
+                            provider.id,
+                            destinations[provider.id],
+                            destinationLabels[provider.id],
+                          )
+                        : "Not connected"}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
           </div>
         </section>
       ) : null}

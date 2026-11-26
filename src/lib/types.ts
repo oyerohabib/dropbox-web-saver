@@ -154,6 +154,7 @@ export interface ExtensionSettings {
   lastUsedFolderPath: string | null;
   lastUsedFolders: LastUsedFolders;
   lastUsedFolderLabels: LastUsedFolders;
+  lastUsedProvider: StorageProviderId | null;
   savePreferences: SavePreferences;
   saveModeSetByUser: boolean;
   walkthroughHidden: boolean;
@@ -170,6 +171,7 @@ export interface ExtensionSettingsPatch {
   lastUsedFolderPath?: string | null;
   lastUsedFolders?: Partial<LastUsedFolders>;
   lastUsedFolderLabels?: Partial<LastUsedFolders>;
+  lastUsedProvider?: StorageProviderId | null;
   savePreferences?: Partial<SavePreferences>;
   saveModeSetByUser?: boolean;
   walkthroughHidden?: boolean;

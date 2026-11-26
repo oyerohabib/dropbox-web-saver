@@ -1,7 +1,8 @@
 import { RECENT_SAVE_LIMIT } from "../lib/constants";
-import { getStorageProvider, providerDisplayName } from "../lib/providers";
+import { getStorageProvider } from "../lib/providers";
 import type { RecentSaveRecord } from "../lib/types";
 import { formatRelativeTime } from "../lib/utils/time";
+import { ProviderName } from "./BrandMarks";
 import { Button } from "./ui";
 
 interface RecentSavesProps {
@@ -59,7 +60,7 @@ export function RecentSaves({ items, limit, onViewAll, onClear, clearing }: Rece
                 {" · "}
                 {item.sourceDomain}
                 {" · "}
-                {providerDisplayName(providerId)}
+                <ProviderName provider={providerId} size={14} />
               </div>
               {item.success ? (
                 <div className="row row-between">
