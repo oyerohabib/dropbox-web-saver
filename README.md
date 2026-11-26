@@ -1,13 +1,15 @@
-# Web Saver for Dropbox
+# Web Files to Cloud
+
+This project was previously named **Web Saver for Dropbox**. The listing is now **Web Files to Cloud** because the extension saves to Google Drive as well as Dropbox.
 
 [![CI](https://github.com/oyerohabib/dropbox-web-saver/actions/workflows/ci.yml/badge.svg)](https://github.com/oyerohabib/dropbox-web-saver/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Open-source Chromium extension (Chrome, Brave, Edge) for saving images, videos, audio, and linked files from any web page straight into Dropbox, without downloading them locally first. It has no server: you sign in to Dropbox in the browser, and your tokens never leave your computer. Connecting takes about 5 seconds with Web Saver's public Dropbox app. The [former setup](#former-dropbox-setup) is still available.
+Open-source Chromium extension (Chrome, Brave, Edge) for saving images, videos, audio, and linked files from any web page straight into Dropbox or Google Drive, without downloading them locally first. It has no server: you sign in in the browser, and your tokens never leave your computer. Connecting takes about 5 seconds with the built-in Dropbox app, or the same way for Google Drive. The [former Dropbox setup](#former-dropbox-setup) is still available.
 
 Contributions and feedback are welcome. See [Contributing](#contributing) and [Feedback and bug reports](#feedback-and-bug-reports).
 
-> Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc. It uses its own icon rather than the Dropbox logo, in line with the [Dropbox brand guidelines](https://www.dropbox.com/developers/reference/branding-guide).
+> Web Files to Cloud is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or Google. It uses its own icon rather than the Dropbox or Google Drive logos, in line with the [Dropbox brand guidelines](https://www.dropbox.com/developers/reference/branding-guide).
 
 ## Walkthrough
 

@@ -1,4 +1,4 @@
-# Privacy Policy – Web Saver for Dropbox
+# Privacy Policy – Web Files to Cloud
 
 Last updated November 26, 2026
 
@@ -82,4 +82,4 @@ Web Saver requests `drive` so it can list folders already in your Drive and save
 
 If this policy changes, the "Last updated" date above will change too. Questions: email oyerohabib@yahoo.com or [open an issue on GitHub](https://github.com/oyerohabib/dropbox-web-saver/issues).
 
-Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or Google.
+Web Files to Cloud is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or Google.
