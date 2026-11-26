@@ -4,6 +4,7 @@ node_modules
 coverage
 dist
 store/
+content/web-saver-for-dropbox-substack/
 .env
 .env.*
 !.env.example
