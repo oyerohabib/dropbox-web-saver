@@ -17,9 +17,9 @@ Watch the walkthrough: https://www.loom.com/share/c74743c06c9241ceb1d7588408c8e6
 
 ## Features
 
-- **Connect Dropbox** in about 5 seconds: sign in, if asked, and click **Allow**
-- Right-click actions: **Save this image / video / audio to Dropbox** and **Save the file this link opens to Dropbox**
-- **Find files on this page**: lists the images, videos, audio files, and downloadable links on the current page with thumbnails, so you can tick several and save them all at once
+- **Connect Dropbox** in about 5 seconds: sign in, if asked, and click **Allow**. **Connect Google Drive** the same way when a Google client id is configured
+- Right-click actions: **Save this image / video / audio to…** and **Save the file this link opens to…**, with a submenu for **Dropbox** or **Google Drive**
+- **Find files on this page**: lists the images, videos, audio files, and downloadable links on the current page with thumbnails, so you can tick several and save them to one or both clouds
 - Review window before each save: see the filename, rename it, and change the destination folder
 - Dropbox folder browser with clickable breadcrumbs, an "Up" row, inline **New folder** creation, and a **Default** badge on the current default folder
 - Per-user save preferences, reachable from the popup, the toolbar icon's right-click menu, the settings page, and every review window
@@ -61,6 +61,8 @@ Most people are done in about 5 seconds:
 That is the whole setup. Web Saver then remembers the connection in this browser. The next save does not ask you to sign in again. There is no Web Saver server, and no app secret is stored. Sign-in is OAuth with PKCE: Dropbox gives the extension a short-lived access token and a refresh token, and those stay in this browser's extension storage.
 
 The extension ships with one public Dropbox app key (`WXT_DROPBOX_APP_KEY`). That key only tells Dropbox which extension is asking to connect. It is not a password and it is not an access token. Anyone can see it in the built extension. What must stay private are the tokens Dropbox issues for your account.
+
+Google Drive uses a **Web application** OAuth client (`WXT_GOOGLE_CLIENT_ID` + `WXT_GOOGLE_CLIENT_SECRET`). Chrome Extension clients do not work with this flow. Add Authorized redirect URI `https://<extension-id>.chromiumapp.org/` using the id from `chrome://extensions`. Scopes are `drive` (list existing folders and save into them) and `userinfo.email`. The client secret is required by Google’s token endpoint and is baked into the build like other installed-app secrets — keep it in gitignored `.env`. Tokens stay in this browser.
 
 The maintainer registers the redirect URI `https://<extension-id>.chromiumapp.org/dropbox` once on that Dropbox app, and turns on **Allow public clients**. The Chrome Web Store extension id stays the same across updates. Do not add a new `manifest.key` after the extension is published, because that would change the id and the redirect would stop matching.
 
@@ -111,10 +113,10 @@ Then in Chrome:
 
 ## Using it
 
-- **Right-click an image, video, or audio element** and choose **Save this image / video / audio to Dropbox**.
-- **Right-click a link** that points to a file (any [supported file](#supported-files), or a link with a `download` attribute) and choose **Save the file this link opens to Dropbox**. Links to ordinary web pages are rejected with an error toast.
+- **Right-click an image, video, or audio element** and choose **Save this image / video / audio to…**, then **Dropbox** or **Google Drive**.
+- **Right-click a link** that points to a file (any [supported file](#supported-files), or a link with a `download` attribute) and choose **Save the file this link opens to…**, then a destination. Links to ordinary web pages are rejected with an error toast.
   - When an image is wrapped in a link, both items appear: the image item saves the picture you see, the link item saves whatever the link points to (often a larger original or a different file).
-- **Find files on a page**: right-click an empty spot and choose **Find files on this page to save to Dropbox**, or open the toolbar popup and click **Scan this page**.
+- **Find files on a page**: right-click an empty spot and choose **Find files on this page…**, or open the toolbar popup and click **Scan this page**. In the review window, tick at least one destination (Dropbox and/or Google Drive) and a folder for each.
   - Videos, audio, and linked files are listed first, then images from largest to smallest. Nothing is selected until you tick it.
   - Small images such as avatars, icons, and logos are hidden. Turn on **Show small images** to see them.
   - Tick files one by one, or use **Select all** and **Clear**. Then click **Save N files**. Keep the window open while it shows "Saving 3 of 7…".
