@@ -89,6 +89,15 @@ export async function fetchAssetBytesFromTab(
   return base64 ? { ...payload, arrayBuffer: base64ToArrayBuffer(base64) } : payload;
 }
 
+export async function resolveMediaUrlFromTab(tabId: number, url: string): Promise<string> {
+  await ensureContentScript(tabId);
+  const response = await sendMessageToTab<{ url?: string }>(tabId, {
+    type: "RESOLVE_MEDIA_URL",
+    url,
+  });
+  return response?.url || url;
+}
+
 export async function describeAssetTargetInTab(
   tabId: number,
   url: string,

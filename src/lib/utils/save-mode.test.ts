@@ -5,6 +5,9 @@ import { markUserSaveModeChoice, shouldAutoSwitchToInstant } from "./save-mode";
 const firstTimeSettings: ExtensionSettings = {
   appKey: "key",
   lastUsedFolderPath: "/Photos",
+  lastUsedFolders: { dropbox: "/Photos", google_drive: null },
+  lastUsedFolderLabels: { dropbox: "/Photos", google_drive: null },
+  lastUsedProvider: "dropbox",
   savePreferences: { saveMode: "reviewed", promptForRename: false, folderBehavior: "remember_last" },
   saveModeSetByUser: false,
   walkthroughHidden: false,

@@ -8,6 +8,11 @@ import type {
 } from "../lib/types";
 import { MAX_TAB_TRANSFER_BYTES } from "../lib/constants";
 import { detectAssetType, rankScannedAssets } from "../lib/utils/asset";
+import {
+  decodeEmbeddedMediaUrl,
+  pickDownloadableMediaUrl,
+  structuredMediaUrlsFromJsonLd,
+} from "../lib/utils/media-url";
 import { arrayBufferToBase64 } from "../lib/utils/binary";
 import { showSaveToast } from "../lib/save-toast";
 
@@ -89,6 +94,86 @@ function isElementMatch(element: Element, url: string): boolean {
   return false;
 }
 
+function jsonLdTexts(root: ParentNode): string[] {
+  return Array.from(root.querySelectorAll('script[type="application/ld+json"]')).map(
+    (script) => script.textContent || "",
+  );
+}
+
+let structuredHintsCache: { href: string; urls: string[] } | null = null;
+
+async function collectStructuredMediaUrls(): Promise<string[]> {
+  const href = window.location.href;
+  const fromDom = structuredMediaUrlsFromJsonLd(jsonLdTexts(document), href);
+  if (fromDom.length) return fromDom;
+  if (structuredHintsCache?.href === href) return structuredHintsCache.urls;
+
+  // In-app navigation leaves the previous pin's metadata in the DOM, so read this URL's own HTML.
+  let urls: string[] = [];
+  try {
+    const response = await fetch(href, { credentials: "include" });
+    if (response.ok) {
+      const parsed = new DOMParser().parseFromString(await response.text(), "text/html");
+      urls = structuredMediaUrlsFromJsonLd(jsonLdTexts(parsed), href);
+    }
+  } catch {
+    urls = [];
+  }
+  structuredHintsCache = { href, urls };
+  return urls;
+}
+
+function primaryVideo(): HTMLVideoElement | undefined {
+  return Array.from(document.querySelectorAll("video"))
+    .map((video) => {
+      const rect = video.getBoundingClientRect();
+      return { video, area: rect.width * rect.height };
+    })
+    .filter((item) => item.area > 0)
+    .sort((a, b) => b.area - a.area)[0]?.video;
+}
+
+function collectPageMediaUrls(): string[] {
+  const urls = new Set<string>();
+  const add = (value: string | null | undefined) => {
+    if (!value) return;
+    const resolved = safeResolveUrl(decodeEmbeddedMediaUrl(value));
+    if (resolved) urls.add(resolved);
+  };
+
+  document.querySelectorAll("video, video source[src], audio, audio source[src]").forEach((element) => {
+    if (element instanceof HTMLMediaElement) add(element.currentSrc || element.getAttribute("src"));
+    else add(element.getAttribute("src"));
+  });
+  performance.getEntriesByType("resource").forEach((entry) => add(entry.name));
+
+  const html = document.documentElement.innerHTML;
+  const embedded = html.match(
+    /https:\\?\/\\?\/[^"'\\\s<>]+(?:videos|\.mp4|\.webm|\.mov|\.m4v|\.m3u8)[^"'\\\s<>]*/gi,
+  ) ?? [];
+  for (const match of embedded) add(match);
+
+  return [...urls];
+}
+
+async function collectIdentityHints(clickedUrl: string, element?: HTMLVideoElement): Promise<string[]> {
+  const video =
+    element
+    ?? Array.from(document.querySelectorAll("video")).find(
+      (candidate) => (candidate.currentSrc || candidate.src) === clickedUrl,
+    );
+  const isPrimary = !video || video === primaryVideo();
+  return [
+    video?.poster,
+    ...(isPrimary ? await collectStructuredMediaUrls() : []),
+  ].filter((value): value is string => Boolean(value));
+}
+
+async function resolveMediaDownloadUrl(url: string, element?: HTMLVideoElement): Promise<string> {
+  const hints = await collectIdentityHints(url, element);
+  return pickDownloadableMediaUrl(url, [...collectPageMediaUrls(), ...hints], hints);
+}
+
 function describeAssetTarget(url: string): AssetDescriptionResponse {
   const resolvedUrl = safeResolveUrl(url);
   if (!resolvedUrl) return {};
@@ -126,7 +211,7 @@ function getElementSize(element: Element): { width?: number; height?: number } {
   return {};
 }
 
-function scanPageAssets(): AssetCandidate[] {
+async function scanPageAssets(): Promise<AssetCandidate[]> {
   const candidates = new Map<string, AssetCandidate>();
 
   document.querySelectorAll("img").forEach((element) => {
@@ -135,10 +220,20 @@ function scanPageAssets(): AssetCandidate[] {
     if (asset) candidates.set(asset.sourceUrl, { ...asset, ...getElementSize(element) });
   });
 
-  document.querySelectorAll("video, video source[src]").forEach((element) => {
+  for (const element of Array.from(document.querySelectorAll("video, video source[src]"))) {
     const asset = normalizeAsset(getMediaUrl(element), element, "video");
-    if (asset) candidates.set(asset.sourceUrl, { ...asset, ...getElementSize(element) });
-  });
+    if (!asset) continue;
+    const video = element instanceof HTMLVideoElement ? element : element.closest("video") ?? undefined;
+    const resolvedUrl = await resolveMediaDownloadUrl(asset.sourceUrl, video);
+    // A player stream with no matching file can never be saved, so leave it out of the list.
+    if (resolvedUrl.startsWith("blob:")) continue;
+    candidates.set(resolvedUrl, {
+      ...asset,
+      sourceUrl: resolvedUrl,
+      requiresAuthenticatedFetch: credentialsForUrl(resolvedUrl) === "include",
+      ...getElementSize(element),
+    });
+  }
 
   document.querySelectorAll("audio, audio source[src]").forEach((element) => {
     const asset = normalizeAsset(getMediaUrl(element), element, "audio");
@@ -155,10 +250,18 @@ function scanPageAssets(): AssetCandidate[] {
   return rankScannedAssets(Array.from(candidates.values())).slice(0, MAX_SCANNED_ASSETS);
 }
 
+function credentialsForUrl(url: string): RequestCredentials {
+  try {
+    return new URL(url, window.location.href).origin === window.location.origin ? "include" : "omit";
+  } catch {
+    return "omit";
+  }
+}
+
 async function fetchAssetBytes(url: string, referrer?: string): Promise<AssetFetchPayload> {
   try {
     const response = await fetch(url, {
-      credentials: "include",
+      credentials: credentialsForUrl(url),
       referrer: referrer || window.location.href,
     });
     if (!response.ok) {
@@ -211,7 +314,7 @@ export default defineContentScript({
         }
 
         if (message.type === "SCAN_PAGE_ASSETS") {
-          sendResponse({ assets: scanPageAssets() });
+          sendResponse({ assets: await scanPageAssets() });
           return;
         }
 
@@ -220,8 +323,13 @@ export default defineContentScript({
           return;
         }
 
+        if (message.type === "RESOLVE_MEDIA_URL") {
+          sendResponse({ url: await resolveMediaDownloadUrl(message.url) });
+          return;
+        }
+
         if (message.type === "FETCH_ASSET_BYTES") {
-          sendResponse(await fetchAssetBytes(message.url, message.referrer));
+          sendResponse(await fetchAssetBytes(await resolveMediaDownloadUrl(message.url), message.referrer));
           return;
         }
 

@@ -1,7 +1,8 @@
 import { RECENT_SAVE_LIMIT } from "../lib/constants";
+import { getStorageProvider } from "../lib/providers";
 import type { RecentSaveRecord } from "../lib/types";
 import { formatRelativeTime } from "../lib/utils/time";
-import { getDropboxWebUrl } from "../lib/utils/url";
+import { ProviderName } from "./BrandMarks";
 import { Button } from "./ui";
 
 interface RecentSavesProps {
@@ -41,33 +42,46 @@ export function RecentSaves({ items, limit, onViewAll, onClear, clearing }: Rece
         {visibleItems.length === 0 ? (
           <div className="empty-state">No saves yet. Right-click any image, video, or file link to save it.</div>
         ) : null}
-        {visibleItems.map((item) => (
-          <div className="recent-item" key={item.id}>
-            <div className="row row-between">
-              <strong className="truncate" title={item.filename}>{item.filename}</strong>
-              <span className={`badge ${item.success ? "success" : "error"}`}>
-                {item.success ? "Saved" : "Failed"}
-              </span>
-            </div>
-            <div className="muted truncate">
-              <time dateTime={new Date(item.timestamp).toISOString()} title={new Date(item.timestamp).toLocaleString()}>
-                {formatRelativeTime(item.timestamp)}
-              </time>
-              {" · "}
-              {item.sourceDomain}
-            </div>
-            {item.success ? (
+        {visibleItems.map((item) => {
+          const providerId = item.provider ?? "dropbox";
+          const provider = getStorageProvider(providerId);
+          return (
+            <div className="recent-item" key={item.id}>
               <div className="row row-between">
-                <span className="path-pill" title={item.destinationPath}>{item.destinationPath}</span>
-                <a className="nowrap" href={getDropboxWebUrl(item.destinationPath)} rel="noopener noreferrer" target="_blank">
-                  Open in Dropbox
-                </a>
+                <strong className="truncate" title={item.filename}>{item.filename}</strong>
+                <span className={`badge ${item.success ? "success" : "error"}`}>
+                  {item.success ? "Saved" : "Failed"}
+                </span>
               </div>
-            ) : (
-              <div className="muted danger-text break-anywhere">{item.message}</div>
-            )}
-          </div>
-        ))}
+              <div className="muted truncate">
+                <time dateTime={new Date(item.timestamp).toISOString()} title={new Date(item.timestamp).toLocaleString()}>
+                  {formatRelativeTime(item.timestamp)}
+                </time>
+                {" · "}
+                {item.sourceDomain}
+                {" · "}
+                <ProviderName provider={providerId} size={14} />
+              </div>
+              {item.success ? (
+                <div className="row row-between">
+                  <span className="path-pill" title={item.destinationPath}>
+                    {item.destinationLabel || provider.formatFolderLabel(item.destinationPath, item.destinationLabel)}
+                  </span>
+                  <a
+                    className="nowrap"
+                    href={provider.getWebUrl(item.destinationPath)}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    Open in {provider.displayName}
+                  </a>
+                </div>
+              ) : (
+                <div className="muted danger-text break-anywhere">{item.message}</div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

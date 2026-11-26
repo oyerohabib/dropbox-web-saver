@@ -3,15 +3,20 @@ import type {
   DropboxTokens,
   ExtensionSettings,
   ExtensionSettingsPatch,
+  GoogleDriveTokens,
+  LastUsedFolders,
   PendingSaveState,
   RecentSaveRecord,
   SaveResult,
   SetupProgress,
+  StorageProviderId,
 } from "./types";
 
 export const STORAGE_KEYS = {
   settings: "settings",
   tokens: "dropboxTokens",
+  googleDriveTokens: "googleDriveTokens",
+  googleDriveFolderNames: "googleDriveFolderNames",
   recentSaves: "recentSaves",
   pendingSave: "pendingSave",
   lastResult: "lastResult",
@@ -25,9 +30,17 @@ const defaultSetupProgress: SetupProgress = {
   addedRedirectUri: false,
 };
 
+const defaultLastUsedFolders: LastUsedFolders = {
+  dropbox: null,
+  google_drive: null,
+};
+
 const defaultSettings: ExtensionSettings = {
   appKey: null,
   lastUsedFolderPath: null,
+  lastUsedFolders: { ...defaultLastUsedFolders },
+  lastUsedFolderLabels: { ...defaultLastUsedFolders },
+  lastUsedProvider: null,
   savePreferences: {
     saveMode: "reviewed",
     promptForRename: false,
@@ -37,14 +50,40 @@ const defaultSettings: ExtensionSettings = {
   walkthroughHidden: false,
 };
 
-export async function getSettings(): Promise<ExtensionSettings> {
-  const result = (await chrome.storage.local.get(
-    STORAGE_KEYS.settings,
-  )) as Record<string, ExtensionSettings | undefined>;
-  const stored: Partial<ExtensionSettings> = result[STORAGE_KEYS.settings] ?? {};
+function normalizeLastUsedFolders(
+  stored: Partial<ExtensionSettings> | undefined,
+): LastUsedFolders {
+  const fromMap = stored?.lastUsedFolders;
+  const dropbox =
+    fromMap?.dropbox
+    ?? stored?.lastUsedFolderPath
+    ?? null;
+  return {
+    dropbox,
+    google_drive: fromMap?.google_drive ?? null,
+  };
+}
+
+function normalizeLastUsedFolderLabels(
+  stored: Partial<ExtensionSettings> | undefined,
+): LastUsedFolders {
+  const fromMap = stored?.lastUsedFolderLabels;
+  return {
+    dropbox: fromMap?.dropbox ?? stored?.lastUsedFolders?.dropbox ?? stored?.lastUsedFolderPath ?? null,
+    google_drive: fromMap?.google_drive ?? null,
+  };
+}
+
+export function migrateSettings(stored: Partial<ExtensionSettings> = {}): ExtensionSettings {
+  const lastUsedFolders = normalizeLastUsedFolders(stored);
+  const lastUsedFolderLabels = normalizeLastUsedFolderLabels(stored);
   return {
     ...defaultSettings,
     ...stored,
+    lastUsedFolders,
+    lastUsedFolderLabels,
+    lastUsedProvider: stored.lastUsedProvider ?? null,
+    lastUsedFolderPath: lastUsedFolders.dropbox,
     savePreferences: {
       ...defaultSettings.savePreferences,
       ...(stored.savePreferences ?? {}),
@@ -52,11 +91,42 @@ export async function getSettings(): Promise<ExtensionSettings> {
   };
 }
 
+export async function getSettings(): Promise<ExtensionSettings> {
+  const result = (await chrome.storage.local.get(
+    STORAGE_KEYS.settings,
+  )) as Record<string, ExtensionSettings | undefined>;
+  return migrateSettings(result[STORAGE_KEYS.settings] ?? {});
+}
+
 export async function updateSettings(partial: ExtensionSettingsPatch): Promise<ExtensionSettings> {
   const current = await getSettings();
+  const nextFolders: LastUsedFolders = {
+    ...current.lastUsedFolders,
+    ...(partial.lastUsedFolders ?? {}),
+  };
+  if (Object.prototype.hasOwnProperty.call(partial, "lastUsedFolderPath")) {
+    nextFolders.dropbox = partial.lastUsedFolderPath ?? null;
+  }
+  const nextLabels: LastUsedFolders = {
+    ...current.lastUsedFolderLabels,
+    ...(partial.lastUsedFolderLabels ?? {}),
+  };
+  if (nextFolders.dropbox !== current.lastUsedFolders.dropbox && partial.lastUsedFolderLabels?.dropbox === undefined) {
+    nextLabels.dropbox = nextFolders.dropbox;
+  }
+  if (
+    nextFolders.google_drive !== current.lastUsedFolders.google_drive
+    && partial.lastUsedFolderLabels?.google_drive === undefined
+  ) {
+    nextLabels.google_drive = null;
+  }
+
   const next: ExtensionSettings = {
     ...current,
     ...partial,
+    lastUsedFolders: nextFolders,
+    lastUsedFolderLabels: nextLabels,
+    lastUsedFolderPath: nextFolders.dropbox,
     savePreferences: {
       ...current.savePreferences,
       ...(partial.savePreferences ?? {}),
@@ -64,6 +134,19 @@ export async function updateSettings(partial: ExtensionSettingsPatch): Promise<E
   };
   await chrome.storage.local.set({ [STORAGE_KEYS.settings]: next });
   return next;
+}
+
+export async function setLastUsedFolder(
+  provider: StorageProviderId,
+  folderKey: string | null,
+  label?: string | null,
+): Promise<ExtensionSettings> {
+  return updateSettings({
+    lastUsedFolders: { [provider]: folderKey },
+    lastUsedFolderLabels: { [provider]: label ?? (provider === "dropbox" ? folderKey : null) },
+    lastUsedProvider: provider,
+    ...(provider === "dropbox" ? { lastUsedFolderPath: folderKey } : {}),
+  });
 }
 
 export async function getTokens(): Promise<DropboxTokens | null> {
@@ -75,6 +158,17 @@ export async function getTokens(): Promise<DropboxTokens | null> {
 
 export async function setTokens(tokens: DropboxTokens | null): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEYS.tokens]: tokens });
+}
+
+export async function getGoogleDriveTokens(): Promise<GoogleDriveTokens | null> {
+  const result = (await chrome.storage.local.get(
+    STORAGE_KEYS.googleDriveTokens,
+  )) as Record<string, GoogleDriveTokens | null | undefined>;
+  return result[STORAGE_KEYS.googleDriveTokens] ?? null;
+}
+
+export async function setGoogleDriveTokens(tokens: GoogleDriveTokens | null): Promise<void> {
+  await chrome.storage.local.set({ [STORAGE_KEYS.googleDriveTokens]: tokens });
 }
 
 export async function getRecentSaves(): Promise<RecentSaveRecord[]> {

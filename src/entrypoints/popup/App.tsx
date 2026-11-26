@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { DropboxConnectCard } from "../../components/DropboxConnectCard";
+import { GoogleDriveConnectCard } from "../../components/GoogleDriveConnectCard";
 import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
 import { Button, StatusMessage } from "../../components/ui";
 import { openFeedbackTab, openPreferencesTab, openSettingsTab, sendBackgroundMessage } from "../../lib/browser";
 import type {
+  CombinedAuthState,
   DropboxAuthState,
+  GoogleDriveAuthState,
   RecentSaveRecord,
   StartScanFlowResponse,
 } from "../../lib/types";
@@ -13,20 +16,22 @@ import type {
 const POPUP_RECENT_LIMIT = 5;
 
 export function PopupApp() {
-  const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
+  const [combinedAuth, setCombinedAuth] = useState<CombinedAuthState | null>(null);
   const [recentSaves, setRecentSaves] = useState<RecentSaveRecord[]>([]);
   const [loadingScan, setLoadingScan] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
+  const [connectingDropbox, setConnectingDropbox] = useState(false);
+  const [disconnectingDropbox, setDisconnectingDropbox] = useState(false);
+  const [connectingDrive, setConnectingDrive] = useState(false);
+  const [disconnectingDrive, setDisconnectingDrive] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   async function load() {
     const [nextAuthState, nextRecentSaves] = await Promise.all([
-      sendBackgroundMessage<DropboxAuthState>({ type: "GET_AUTH_STATE" }),
+      sendBackgroundMessage<CombinedAuthState>({ type: "GET_COMBINED_AUTH_STATE" }),
       sendBackgroundMessage<RecentSaveRecord[]>({ type: "GET_RECENT_SAVES" }),
     ]);
-    setAuthState(nextAuthState);
+    setCombinedAuth(nextAuthState);
     setRecentSaves(nextRecentSaves);
   }
 
@@ -34,8 +39,8 @@ export function PopupApp() {
     void load();
   }, []);
 
-  async function connect() {
-    setConnecting(true);
+  async function connectDropbox() {
+    setConnectingDropbox(true);
     setAuthError(null);
     try {
       await sendBackgroundMessage<DropboxAuthState>({ type: "CONNECT_DROPBOX" });
@@ -43,12 +48,12 @@ export function PopupApp() {
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Dropbox connection failed.");
     } finally {
-      setConnecting(false);
+      setConnectingDropbox(false);
     }
   }
 
-  async function disconnect() {
-    setDisconnecting(true);
+  async function disconnectDropbox() {
+    setDisconnectingDropbox(true);
     setAuthError(null);
     try {
       await sendBackgroundMessage<{ ok: true }>({ type: "DISCONNECT_DROPBOX" });
@@ -56,7 +61,33 @@ export function PopupApp() {
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Could not disconnect Dropbox.");
     } finally {
-      setDisconnecting(false);
+      setDisconnectingDropbox(false);
+    }
+  }
+
+  async function connectDrive() {
+    setConnectingDrive(true);
+    setAuthError(null);
+    try {
+      await sendBackgroundMessage<GoogleDriveAuthState>({ type: "CONNECT_GOOGLE_DRIVE" });
+      await load();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Google Drive connection failed.");
+    } finally {
+      setConnectingDrive(false);
+    }
+  }
+
+  async function disconnectDrive() {
+    setDisconnectingDrive(true);
+    setAuthError(null);
+    try {
+      await sendBackgroundMessage<{ ok: true }>({ type: "DISCONNECT_GOOGLE_DRIVE" });
+      await load();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Could not disconnect Google Drive.");
+    } finally {
+      setDisconnectingDrive(false);
     }
   }
 
@@ -78,7 +109,9 @@ export function PopupApp() {
     }
   }
 
-  const signedIn = authState?.status === "signed_in";
+  const dropboxSignedIn = combinedAuth?.dropbox.status === "signed_in";
+  const driveSignedIn = combinedAuth?.googleDrive.status === "signed_in";
+  const anySignedIn = dropboxSignedIn || driveSignedIn;
 
   return (
     <div className="app-shell popup">
@@ -88,13 +121,20 @@ export function PopupApp() {
           <span className="truncate">Web Saver for Dropbox</span>
         </div>
         <div className="row">
-          {authState ? (
+          {combinedAuth ? (
             <span
-              className={`badge ${signedIn ? "success" : "neutral"}`}
-              title={signedIn ? authState.accountEmail ?? undefined : undefined}
+              className={`badge ${anySignedIn ? "success" : "neutral"}`}
+              title={
+                [
+                  dropboxSignedIn ? combinedAuth.dropbox.accountEmail : null,
+                  driveSignedIn ? combinedAuth.googleDrive.accountEmail : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || undefined
+              }
             >
               <span className="status-dot" />
-              {signedIn ? "Connected" : "Not connected"}
+              {anySignedIn ? "Connected" : "Not connected"}
             </span>
           ) : null}
           <Button
@@ -108,22 +148,34 @@ export function PopupApp() {
         </div>
       </header>
 
-      {authState ? (
+      {combinedAuth ? (
         <section className="panel stack">
           <DropboxConnectCard
-            authState={authState}
-            connecting={connecting}
-            disconnecting={disconnecting}
+            authState={combinedAuth.dropbox}
+            connecting={connectingDropbox}
+            disconnecting={disconnectingDropbox}
             error={authError}
             layout="popup"
-            onConnect={() => void connect()}
-            onDisconnect={() => void disconnect()}
+            onConnect={() => void connectDropbox()}
+            onDisconnect={() => void disconnectDropbox()}
             onUseOwnApp={
-              authState.status === "missing_app_key"
+              combinedAuth.dropbox.status === "missing_app_key"
                 ? () => void openSettingsTab("setup").then(() => window.close())
                 : undefined
             }
           />
+          <GoogleDriveConnectCard
+            authState={combinedAuth.googleDrive}
+            connecting={connectingDrive}
+            disconnecting={disconnectingDrive}
+            layout="popup"
+            onConnect={() => void connectDrive()}
+            onDisconnect={() => void disconnectDrive()}
+          />
+          <div className="muted connect-privacy">
+            Tokens stay in this browser.{" "}
+            <a href="/privacy.html" rel="noopener" target="_blank">Privacy</a>
+          </div>
         </section>
       ) : null}
 

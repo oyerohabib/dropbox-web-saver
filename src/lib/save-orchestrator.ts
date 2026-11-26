@@ -1,6 +1,5 @@
-import { appendRecentSave, setLastResult, setPendingSave, updateSettings } from "./storage";
-import { createFolder, saveUrlToDropbox, uploadFileToDropbox } from "./dropbox-api";
-import { getAuthState } from "./dropbox-auth";
+import { appendRecentSave, setLastResult, setLastUsedFolder, setPendingSave } from "./storage";
+import { getStorageProvider, providerDisplayName } from "./providers";
 import type {
   AssetCandidate,
   AssetFetchPayload,
@@ -9,6 +8,7 @@ import type {
   PendingSingleSaveState,
   SaveRequest,
   SaveResult,
+  StorageProviderId,
 } from "./types";
 import type { AssetProbeResult } from "./asset-probe";
 import { applyProbeResult } from "./asset-probe";
@@ -16,7 +16,6 @@ import { detectAssetType } from "./utils/asset";
 import {
   deriveCandidateFilename,
   hasExtension,
-  joinDropboxPath,
   normalizeMimeType,
   parseContentDispositionFilename,
   sanitizeFilename,
@@ -30,6 +29,10 @@ function isAuthError(error: unknown): error is SavePipelineError {
     error instanceof SavePipelineError
     && (error.code === "TOKEN_EXPIRED" || error.code === "AUTH_REQUIRED")
   );
+}
+
+function resolveProviderId(request: SaveRequest): StorageProviderId {
+  return request.provider ?? "dropbox";
 }
 
 export interface SaveDependencies {
@@ -48,7 +51,10 @@ export function createPendingSave(
   const resolvedFilename = deriveCandidateFilename(request.candidate, request.finalFilename);
   return {
     mode: "single",
-    request,
+    request: {
+      ...request,
+      provider: resolveProviderId(request),
+    },
     resolvedFilename,
     reason,
     permissionOrigin,
@@ -59,13 +65,20 @@ export function createPendingSave(
 export function createPendingScanState(
   assets: AssetCandidate[],
   tabId?: number,
-  destinationPath?: string | null,
+  destinations?: Partial<Record<StorageProviderId, string | null>>,
+  selectedProviders: StorageProviderId[] = ["google_drive"],
 ): PendingScanState {
+  const dropboxPath = destinations?.dropbox ?? null;
   return {
     mode: "scan",
     assets,
     tabId,
-    destinationPath,
+    destinationPath: dropboxPath,
+    destinations: {
+      dropbox: dropboxPath,
+      google_drive: destinations?.google_drive ?? null,
+    },
+    selectedProviders,
     selectedSourceUrl: null,
     selectedFilename: null,
     createdAt: Date.now(),
@@ -77,17 +90,33 @@ export async function saveAsset(
   request: SaveRequest,
   dependencies: SaveDependencies,
 ): Promise<SaveResult> {
+  const providerId = resolveProviderId(request);
+  const provider = getStorageProvider(providerId);
+  const providerName = provider.displayName;
+
   try {
-    const authState = await getAuthState();
-    if (authState.status === "missing_app_key" || authState.status === "signed_out") {
+    const authState = await provider.getAuthState();
+    if (
+      authState.status === "missing_app_key"
+      || authState.status === "missing_client_id"
+      || authState.status === "signed_out"
+    ) {
       const result: SaveResult = {
         ok: false,
         status: "needs_auth",
-        errorCode: authState.status === "missing_app_key" ? "APP_KEY_MISSING" : "AUTH_REQUIRED",
+        provider: providerId,
+        errorCode:
+          authState.status === "missing_app_key"
+            ? "APP_KEY_MISSING"
+            : authState.status === "missing_client_id"
+              ? "CLIENT_ID_MISSING"
+              : "AUTH_REQUIRED",
         message:
           authState.status === "missing_app_key"
             ? "Add your Dropbox app key in the extension settings first."
-            : "Connect Dropbox to continue.",
+            : authState.status === "missing_client_id"
+              ? "This copy of Web Saver has no Google client id. Rebuild with WXT_GOOGLE_CLIENT_ID."
+              : `Connect ${providerName} to continue.`,
       };
       await setLastResult(result);
       return result;
@@ -98,8 +127,9 @@ export async function saveAsset(
       const result: SaveResult = {
         ok: false,
         status: "needs_folder",
+        provider: providerId,
         errorCode: "FOLDER_REQUIRED",
-        message: "Choose a Dropbox folder before saving.",
+        message: `Choose a ${providerName} folder before saving.`,
       };
       await setLastResult(result);
       return result;
@@ -113,6 +143,7 @@ export async function saveAsset(
       const result: SaveResult = {
         ok: false,
         status: "unsupported",
+        provider: providerId,
         errorCode: "UNSUPPORTED_TARGET",
         message: "This target does not look like a downloadable file or media asset.",
       };
@@ -126,14 +157,13 @@ export async function saveAsset(
       candidate = applyProbeResult(candidate, await dependencies.probeAssetMetadata(candidate));
       filename = deriveCandidateFilename(candidate, request.finalFilename);
     }
-    let dropboxPath = joinDropboxPath(destinationPath, filename);
 
     let pathDisplay: string | undefined;
     let method: SaveResult["method"];
 
-    if (canUseUrlImport(candidate)) {
+    if (provider.importFromUrl && canUseUrlImport(candidate)) {
       try {
-        const imported = await saveUrlToDropbox(dropboxPath, candidate.sourceUrl);
+        const imported = await provider.importFromUrl(destinationPath, filename, candidate.sourceUrl);
         pathDisplay = imported.pathDisplay;
         method = "url_import";
       } catch (error) {
@@ -151,15 +181,17 @@ export async function saveAsset(
         || !(assetPayload.arrayBuffer instanceof ArrayBuffer)
         || assetPayload.arrayBuffer.byteLength === 0
       ) {
-        // Without access to the file's site the browser blocks the download outright (status 0).
         const missingPermission =
           !assetPayload.ok && assetPayload.status === 0
-            ? await dependencies.findMissingSitePermission?.(candidate.sourceUrl)
+            ? await dependencies.findMissingSitePermission?.(
+                assetPayload.finalUrl || candidate.sourceUrl,
+              )
             : null;
         if (missingPermission) {
           const result: SaveResult = {
             ok: false,
             status: "needs_permission",
+            provider: providerId,
             errorCode: "SITE_PERMISSION_REQUIRED",
             filename,
             permissionOrigin: missingPermission,
@@ -184,20 +216,24 @@ export async function saveAsset(
         },
         request.finalFilename,
       );
-      dropboxPath = joinDropboxPath(destinationPath, filename);
-      const uploaded = await uploadFileToDropbox(dropboxPath, assetPayload.arrayBuffer);
+      const uploaded = await provider.uploadFile(destinationPath, filename, assetPayload.arrayBuffer);
       pathDisplay = uploaded.pathDisplay;
       method = "direct_upload";
     }
 
-    await updateSettings({ lastUsedFolderPath: destinationPath });
+    const folderLabel = await provider.resolveFolderLabel(destinationPath).catch(() =>
+      provider.formatFolderLabel(destinationPath),
+    );
+    await setLastUsedFolder(providerId, destinationPath, folderLabel);
     const result: SaveResult = {
       ok: true,
       status: "success",
       method,
       path: pathDisplay,
       filename,
-      message: `Saved ${filename} to ${destinationPath}.`,
+      provider: providerId,
+      folderLabel,
+      message: `Saved ${filename} to ${folderLabel}.`,
     };
 
     await appendRecentSave({
@@ -205,9 +241,11 @@ export async function saveAsset(
       filename,
       sourceDomain: getDomain(request.candidate.pageUrl || request.candidate.sourceUrl),
       destinationPath,
+      destinationLabel: folderLabel,
       success: true,
       timestamp: dependencies.now?.() ?? Date.now(),
       method,
+      provider: providerId,
       message: result.message,
     });
     await setLastResult(result);
@@ -218,6 +256,7 @@ export async function saveAsset(
       const result: SaveResult = {
         ok: false,
         status: "needs_auth",
+        provider: providerId,
         errorCode: error.code,
         message: error.message,
       };
@@ -232,13 +271,14 @@ export async function saveAsset(
             error instanceof Error ? error.message : "Unexpected save error.",
             "UNKNOWN",
           );
-    const destinationPath = request.destinationPath || "/";
+    const destinationPath = request.destinationPath || provider.getRootFolderKey();
     const filename = request.finalFilename
       ? sanitizeFilename(request.finalFilename)
       : deriveCandidateFilename(request.candidate);
     const result: SaveResult = {
       ok: false,
       status: "failed",
+      provider: providerId,
       errorCode: typedError.code,
       filename,
       message: typedError.message,
@@ -250,6 +290,7 @@ export async function saveAsset(
       destinationPath,
       success: false,
       timestamp: dependencies.now?.() ?? Date.now(),
+      provider: providerId,
       message: typedError.message,
     });
     await setLastResult(result);
@@ -257,8 +298,17 @@ export async function saveAsset(
   }
 }
 
-export async function createFolderAndSelect(parentPath: string, name: string): Promise<string> {
-  const folder = await createFolder(parentPath, name);
-  await updateSettings({ lastUsedFolderPath: folder.pathDisplay });
-  return folder.pathDisplay;
+export async function createFolderAndSelect(
+  parentPath: string,
+  name: string,
+  providerId: StorageProviderId = "dropbox",
+): Promise<string> {
+  const provider = getStorageProvider(providerId);
+  const folder = await provider.createFolder(parentPath, name);
+  const folderKey = providerId === "dropbox" ? folder.pathDisplay : folder.id;
+  const folderLabel = providerId === "dropbox" ? folder.pathDisplay : folder.name;
+  await setLastUsedFolder(providerId, folderKey, folderLabel);
+  return folderKey;
 }
+
+export { providerDisplayName };

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { DropboxConnectCard } from "../../components/DropboxConnectCard";
+import { GoogleDriveConnectCard } from "../../components/GoogleDriveConnectCard";
 import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
 import { SetupWizard } from "../../components/SetupWizard";
@@ -9,15 +10,21 @@ import { sendBackgroundMessage } from "../../lib/browser";
 import { REPO_URL } from "../../lib/project";
 import { SUPPORTED_FILE_TYPES } from "../../lib/utils/file-types";
 import type {
+  CombinedAuthState,
   DropboxAuthState,
   ExtensionSettings,
+  GoogleDriveAuthState,
   RecentSaveRecord,
 } from "../../lib/types";
 
-type BusyAction = "connect" | "disconnect";
+type BusyAction =
+  | "connect"
+  | "disconnect"
+  | "connect-drive"
+  | "disconnect-drive";
 
 export function OptionsApp() {
-  const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
+  const [combinedAuth, setCombinedAuth] = useState<CombinedAuthState | null>(null);
   const [settings, setSettings] = useState<ExtensionSettings | null>(null);
   const [recentSaves, setRecentSaves] = useState<RecentSaveRecord[]>([]);
   const [showOwnApp, setShowOwnApp] = useState(window.location.hash === "#setup");
@@ -29,6 +36,8 @@ export function OptionsApp() {
   const pageRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
+  const authState = combinedAuth?.dropbox ?? null;
+  const googleAuth = combinedAuth?.googleDrive ?? null;
 
   useEffect(() => {
     const page = pageRef.current;
@@ -48,11 +57,11 @@ export function OptionsApp() {
 
   async function load() {
     const [nextAuthState, nextSettings, nextRecentSaves] = await Promise.all([
-      sendBackgroundMessage<DropboxAuthState>({ type: "GET_AUTH_STATE" }),
+      sendBackgroundMessage<CombinedAuthState>({ type: "GET_COMBINED_AUTH_STATE" }),
       sendBackgroundMessage<ExtensionSettings>({ type: "GET_SETTINGS" }),
       sendBackgroundMessage<RecentSaveRecord[]>({ type: "GET_RECENT_SAVES" }),
     ]);
-    setAuthState(nextAuthState);
+    setCombinedAuth(nextAuthState);
     setSettings(nextSettings);
     setRecentSaves(nextRecentSaves);
   }
@@ -98,6 +107,24 @@ export function OptionsApp() {
     );
   }
 
+  function disconnectDrive() {
+    return runAction(
+      "disconnect-drive",
+      () => sendBackgroundMessage<{ ok: true }>({ type: "DISCONNECT_GOOGLE_DRIVE" }),
+      "Google Drive disconnected.",
+      "Could not disconnect Google Drive.",
+    );
+  }
+
+  function connectDrive() {
+    return runAction(
+      "connect-drive",
+      () => sendBackgroundMessage<GoogleDriveAuthState>({ type: "CONNECT_GOOGLE_DRIVE" }),
+      "Google Drive connected.",
+      "Could not connect Google Drive.",
+    );
+  }
+
   async function setWalkthroughHidden(hidden: boolean) {
     try {
       const nextSettings = await sendBackgroundMessage<ExtensionSettings>({
@@ -114,7 +141,7 @@ export function OptionsApp() {
   }
 
   async function clearHistory() {
-    if (!window.confirm("Clear your recent saves history? Files already in Dropbox are not affected.")) return;
+    if (!window.confirm("Clear your recent saves history? Files already in Dropbox or Google Drive are not affected.")) return;
     setClearingHistory(true);
     try {
       await sendBackgroundMessage<{ ok: true }>({ type: "CLEAR_RECENT_SAVES" });
@@ -127,24 +154,39 @@ export function OptionsApp() {
   }
 
   const signedIn = authState?.status === "signed_in";
+  const driveSignedIn = googleAuth?.status === "signed_in";
+  const anySignedIn = signedIn || driveSignedIn;
   const missingKey = authState?.status === "missing_app_key";
 
   useEffect(() => {
     if (missingKey) setShowOwnApp(true);
   }, [missingKey]);
 
-  const connectionSection = authState ? (
+  const connectionSection = authState && googleAuth ? (
     <section className="panel stack" id="connection">
-      <DropboxConnectCard
-        authState={authState}
-        connecting={busyAction === "connect"}
-        disconnecting={busyAction === "disconnect"}
-        ownAppOpen={showOwnApp}
-        onConnect={() => void connect()}
-        onDisconnect={() => void disconnect()}
-        onUseOwnApp={() => setShowOwnApp((current) => !current)}
-        ownAppAsLink={!missingKey}
-      />
+      <div className="connect-providers">
+        <DropboxConnectCard
+          authState={authState}
+          connecting={busyAction === "connect"}
+          disconnecting={busyAction === "disconnect"}
+          ownAppOpen={showOwnApp}
+          onConnect={() => void connect()}
+          onDisconnect={() => void disconnect()}
+          onUseOwnApp={() => setShowOwnApp((current) => !current)}
+          ownAppAsLink={!missingKey}
+        />
+        <GoogleDriveConnectCard
+          authState={googleAuth}
+          connecting={busyAction === "connect-drive"}
+          disconnecting={busyAction === "disconnect-drive"}
+          onConnect={() => void connectDrive()}
+          onDisconnect={() => void disconnectDrive()}
+        />
+      </div>
+      <div className="muted connect-privacy">
+        Tokens stay in this browser.{" "}
+        <a href="/privacy.html" rel="noopener" target="_blank">Privacy</a>
+      </div>
     </section>
   ) : null;
 
@@ -182,11 +224,11 @@ export function OptionsApp() {
           </div>
         </div>
         <p>
-          {authState && !signedIn
+          {authState && !anySignedIn
             ? missingKey
-              ? "Add your own Dropbox app below to start saving. Everything stays in this browser."
-              : "Connect Dropbox to start saving. It usually takes about 5 seconds."
-            : "Choose how saving works, manage your Dropbox connection, and review recent saves."}
+              ? "Add your own Dropbox app below to start saving, or connect Google Drive. Everything stays in this browser."
+              : "Connect Dropbox or Google Drive to start saving."
+            : "Choose how saving works, manage cloud connections, and review recent saves."}
         </p>
         {settings?.walkthroughHidden ? (
           <Button className="watch-walkthrough" onClick={() => void setWalkthroughHidden(false)} variant="secondary">
@@ -200,7 +242,7 @@ export function OptionsApp() {
       ) : null}
 
       <nav aria-label="Settings sections" className="page-nav" ref={navRef}>
-        {authState ? <a href="#connection">Dropbox</a> : null}
+        {authState ? <a href="#connection">Connections</a> : null}
         <a href="#preferences">Save preferences</a>
         <a href="#supported-files">Supported files</a>
         <a href="#recent-saves">Recent saves</a>
@@ -210,7 +252,7 @@ export function OptionsApp() {
 
       {!authState ? <Skeleton rows={4} /> : null}
 
-      {authState && !signedIn ? dropboxSections : null}
+      {authState && !anySignedIn ? dropboxSections : null}
 
       <section className="panel" id="preferences">
         <div className="panel-header">
@@ -226,7 +268,7 @@ export function OptionsApp() {
         />
       </section>
 
-      {signedIn ? dropboxSections : null}
+      {anySignedIn ? dropboxSections : null}
 
       <section className="panel stack" id="supported-files">
         <div>
@@ -259,7 +301,7 @@ export function OptionsApp() {
       </div>
 
       <footer className="muted page-footer">
-        Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc.
+        Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or Google.
         {" · "}
         <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
         <div className="actions-wrap footer-links">

@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { saveAsset } from "./save-orchestrator";
 import { getAuthState } from "./dropbox-auth";
 import { getCurrentAccount, saveUrlToDropbox, uploadFileToDropbox } from "./dropbox-api";
+import { getGoogleDriveAuthState } from "./google-drive-auth";
+import { uploadFileToGoogleDrive } from "./google-drive-api";
 import { SavePipelineError } from "./utils/errors";
 
 vi.mock("./dropbox-auth", () => ({
@@ -15,10 +17,27 @@ vi.mock("./dropbox-api", () => ({
   createFolder: vi.fn(),
 }));
 
+vi.mock("./google-drive-auth", () => ({
+  getGoogleDriveAuthState: vi.fn(),
+  connectGoogleDrive: vi.fn(),
+  disconnectGoogleDrive: vi.fn(),
+}));
+
+vi.mock("./google-drive-api", () => ({
+  uploadFileToGoogleDrive: vi.fn(),
+  listGoogleDriveFolders: vi.fn(),
+  createGoogleDriveFolder: vi.fn(),
+  getGoogleDriveFolderName: vi.fn(async (folderKey: string) =>
+    folderKey === "folder-1" ? "web-saver" : folderKey,
+  ),
+  getGoogleDriveWebUrl: vi.fn((folderKey: string) => `https://drive.google.com/drive/folders/${folderKey}`),
+}));
+
 vi.mock("./storage", () => ({
   appendRecentSave: vi.fn(),
   setLastResult: vi.fn(),
   setPendingSave: vi.fn(),
+  setLastUsedFolder: vi.fn(),
   updateSettings: vi.fn(),
 }));
 
@@ -269,6 +288,45 @@ describe("saveAsset", () => {
     expect(uploadFileToDropbox).not.toHaveBeenCalled();
   });
 
+  it("asks for the resolved media host when the original click URL is a blob", async () => {
+    vi.mocked(getGoogleDriveAuthState).mockResolvedValue({
+      status: "signed_in",
+      clientId: "client-id",
+      redirectUri: "https://example.test",
+    });
+    const findMissingSitePermission = vi.fn().mockResolvedValue("https://v1.pinimg.com/*");
+
+    const result = await saveAsset(
+      {
+        provider: "google_drive",
+        candidate: {
+          sourceUrl: "blob:https://www.pinterest.com/abc",
+          pageUrl: "https://www.pinterest.com/pin/1",
+          detectedType: "video",
+          suggestedFilename: null,
+          requiresAuthenticatedFetch: true,
+        },
+        destinationPath: "folder-1",
+        tabId: 12,
+      },
+      {
+        fetchAssetBytes: vi.fn().mockResolvedValue({
+          ok: false,
+          status: 0,
+          finalUrl: "https://v1.pinimg.com/videos/iht/expMp4/abc_720w.mp4",
+        }),
+        findMissingSitePermission,
+        now: () => 12,
+      },
+    );
+
+    expect(findMissingSitePermission).toHaveBeenCalledWith(
+      "https://v1.pinimg.com/videos/iht/expMp4/abc_720w.mp4",
+    );
+    expect(result.status).toBe("needs_permission");
+    expect(result.permissionOrigin).toBe("https://v1.pinimg.com/*");
+  });
+
   it("reports a normal fetch failure when the site is already allowed", async () => {
     vi.mocked(getAuthState).mockResolvedValue({
       status: "signed_in",
@@ -500,5 +558,54 @@ describe("saveAsset", () => {
     );
 
     expect(result.status).toBe("needs_auth");
+  });
+
+  it("uploads to Google Drive without using Dropbox url import", async () => {
+    vi.mocked(getGoogleDriveAuthState).mockResolvedValue({
+      status: "signed_in",
+      clientId: "client-id",
+      redirectUri: "https://example.test",
+    });
+    vi.mocked(uploadFileToGoogleDrive).mockResolvedValue({
+      pathDisplay: "mockup.png",
+      folderKey: "folder-1",
+    });
+
+    const fetchAssetBytes = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      contentType: "image/png",
+      arrayBuffer: new Uint8Array([1, 2, 3]).buffer,
+    });
+
+    const result = await saveAsset(
+      {
+        provider: "google_drive",
+        candidate: {
+          sourceUrl: "https://cdn.example.com/mockup.png",
+          pageUrl: "https://example.com/project",
+          detectedType: "image",
+          suggestedFilename: "mockup.png",
+          requiresAuthenticatedFetch: false,
+        },
+        destinationPath: "folder-1",
+      },
+      {
+        fetchAssetBytes,
+        now: () => 11,
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.provider).toBe("google_drive");
+    expect(result.method).toBe("direct_upload");
+    expect(result.folderLabel).toBe("web-saver");
+    expect(result.message).toBe("Saved mockup.png to web-saver.");
+    expect(saveUrlToDropbox).not.toHaveBeenCalled();
+    expect(uploadFileToGoogleDrive).toHaveBeenCalledWith(
+      "folder-1",
+      "mockup.png",
+      expect.any(ArrayBuffer),
+    );
   });
 });
