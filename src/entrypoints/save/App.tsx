@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { DropboxConnectCard } from "../../components/DropboxConnectCard";
 import { FolderPicker } from "../../components/FolderPicker";
+import { GoogleDriveConnectCard } from "../../components/GoogleDriveConnectCard";
 import { Button, Spinner, StatusMessage, type StatusTone } from "../../components/ui";
 import {
   openFeedbackTab,
@@ -9,18 +10,21 @@ import {
   requestSitePermissions,
   sendBackgroundMessage,
 } from "../../lib/browser";
+import { getStorageProvider, listStorageProviders, providerDisplayName } from "../../lib/providers";
 import { isSmallAsset } from "../../lib/utils/asset";
 import { summarizeBatch, type BatchItemResult, type BatchSummary } from "../../lib/utils/batch";
 import { deriveCandidateFilename } from "../../lib/utils/filename";
-import { formatFolderPath } from "../../lib/utils/folder-path";
-import { getDomain, getDropboxWebUrl, getPatternHost } from "../../lib/utils/url";
+import { getDomain, getPatternHost } from "../../lib/utils/url";
 import type {
   AssetCandidate,
+  CombinedAuthState,
   DropboxAuthState,
   ExtensionSettings,
+  GoogleDriveAuthState,
   PendingSaveState,
   SavePreferences,
   SaveResult,
+  StorageProviderId,
 } from "../../lib/types";
 
 const SUCCESS_CLOSE_DELAY_MS = 1_200;
@@ -71,48 +75,104 @@ function AssetThumb({ asset }: { asset: AssetCandidate }) {
   );
 }
 
+type DestinationMap = Record<StorageProviderId, string | null>;
+
+function emptyDestinations(): DestinationMap {
+  return { dropbox: null, google_drive: null };
+}
+
+function folderLabel(
+  provider: StorageProviderId,
+  folderKey: string | null,
+  knownLabel?: string | null,
+): string {
+  if (knownLabel) return knownLabel;
+  const storage = getStorageProvider(provider);
+  return storage.formatFolderLabel(folderKey || storage.getRootFolderKey());
+}
+
 export function SaveApp() {
-  const [authState, setAuthState] = useState<DropboxAuthState | null>(null);
+  const [combinedAuth, setCombinedAuth] = useState<CombinedAuthState | null>(null);
   const [saveFlow, setSaveFlow] = useState<PendingSaveState | null>(null);
-  const [selectedPath, setSelectedPath] = useState<string | null>("/");
+  const [destinations, setDestinations] = useState<DestinationMap>(emptyDestinations);
+  const [destinationLabels, setDestinationLabels] = useState<DestinationMap>(emptyDestinations);
+  const [selectedProviders, setSelectedProviders] = useState<StorageProviderId[]>(["dropbox"]);
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(() => new Set());
   const [showSmallImages, setShowSmallImages] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
-  const [batchResult, setBatchResult] = useState<(BatchSummary & { folderPath: string }) | null>(null);
+  const [batchResult, setBatchResult] = useState<(BatchSummary & {
+    destinations: DestinationMap;
+    providers: StorageProviderId[];
+  }) | null>(null);
   const [permissionOrigins, setPermissionOrigins] = useState<string[]>([]);
   const [filenameDraft, setFilenameDraft] = useState("");
   const [status, setStatus] = useState<{ tone: StatusTone; text: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [connecting, setConnecting] = useState(false);
+  const [connectingProvider, setConnectingProvider] = useState<StorageProviderId | null>(null);
   const [saving, setSaving] = useState(false);
-  const [savedTo, setSavedTo] = useState<{ folderPath: string; filename: string; switchedToInstant: boolean } | null>(
-    null,
-  );
+  const [savedTo, setSavedTo] = useState<{
+    provider: StorageProviderId;
+    folderPath: string;
+    folderLabel: string;
+    filename: string;
+    switchedToInstant: boolean;
+  } | null>(null);
   const [keptReviewing, setKeptReviewing] = useState(false);
   const [keepingReview, setKeepingReview] = useState(false);
-  const [changingFolder, setChangingFolder] = useState(false);
+  const [changingFolderFor, setChangingFolderFor] = useState<StorageProviderId | null>(null);
   const [savePreferences, setSavePreferences] = useState<SavePreferences | null>(null);
-  const [defaultFolder, setDefaultFolder] = useState<string | null>(null);
-  const [defaultSaved, setDefaultSaved] = useState(false);
+  const [defaultFolders, setDefaultFolders] = useState<DestinationMap>(emptyDestinations);
+  const [defaultSavedProvider, setDefaultSavedProvider] = useState<StorageProviderId | null>(null);
+
+  const singleProvider: StorageProviderId =
+    saveFlow?.mode === "single" ? (saveFlow.request.provider ?? "dropbox") : "dropbox";
+  const activeProviders: StorageProviderId[] =
+    saveFlow?.mode === "scan" ? selectedProviders : saveFlow?.mode === "single" ? [singleProvider] : ["dropbox"];
 
   async function load() {
-    const [nextAuthState, nextSaveFlow, settings] = await Promise.all([
-      sendBackgroundMessage<DropboxAuthState>({ type: "GET_AUTH_STATE" }),
+    const [nextAuth, nextSaveFlow, settings] = await Promise.all([
+      sendBackgroundMessage<CombinedAuthState>({ type: "GET_COMBINED_AUTH_STATE" }),
       sendBackgroundMessage<PendingSaveState | null>({ type: "GET_PENDING_SAVE" }),
       sendBackgroundMessage<ExtensionSettings>({ type: "GET_SETTINGS" }),
     ]);
-    setAuthState(nextAuthState);
+    setCombinedAuth(nextAuth);
     setSaveFlow(nextSaveFlow);
     setPermissionOrigins(
       nextSaveFlow?.mode === "single" && nextSaveFlow.permissionOrigin ? [nextSaveFlow.permissionOrigin] : [],
     );
     setSavePreferences(settings.savePreferences);
-    setDefaultFolder(settings.lastUsedFolderPath);
-    setSelectedPath(
-      nextSaveFlow?.mode === "scan"
-        ? nextSaveFlow.destinationPath || settings.lastUsedFolderPath || "/"
-        : nextSaveFlow?.request.destinationPath || settings.lastUsedFolderPath || "/",
-    );
+    setDefaultFolders({ ...settings.lastUsedFolders });
+
+    const nextDestinations: DestinationMap = {
+      dropbox:
+        nextSaveFlow?.mode === "scan"
+          ? nextSaveFlow.destinations?.dropbox ?? nextSaveFlow.destinationPath ?? settings.lastUsedFolders.dropbox
+          : nextSaveFlow?.mode === "single" && nextSaveFlow.request.provider === "dropbox"
+            ? nextSaveFlow.request.destinationPath ?? settings.lastUsedFolders.dropbox
+            : settings.lastUsedFolders.dropbox,
+      google_drive:
+        nextSaveFlow?.mode === "scan"
+          ? nextSaveFlow.destinations?.google_drive ?? settings.lastUsedFolders.google_drive
+          : nextSaveFlow?.mode === "single" && nextSaveFlow.request.provider === "google_drive"
+            ? nextSaveFlow.request.destinationPath ?? settings.lastUsedFolders.google_drive
+            : settings.lastUsedFolders.google_drive,
+    };
+    setDestinations(nextDestinations);
+    setDestinationLabels({
+      dropbox:
+        nextDestinations.dropbox === settings.lastUsedFolders.dropbox
+          ? settings.lastUsedFolderLabels.dropbox ?? nextDestinations.dropbox
+          : nextDestinations.dropbox,
+      google_drive:
+        nextDestinations.google_drive === settings.lastUsedFolders.google_drive
+          ? settings.lastUsedFolderLabels.google_drive
+          : null,
+    });
+
+    if (nextSaveFlow?.mode === "scan") {
+      setSelectedProviders(nextSaveFlow.selectedProviders?.length ? nextSaveFlow.selectedProviders : ["dropbox"]);
+    }
+
     setFilenameDraft(
       nextSaveFlow?.mode === "single"
         ? nextSaveFlow.request.finalFilename
@@ -120,14 +180,18 @@ export function SaveApp() {
           || deriveCandidateFilename(nextSaveFlow.request.candidate, nextSaveFlow.request.finalFilename)
         : "",
     );
-    setChangingFolder(
-      Boolean(
-        settings.savePreferences.folderBehavior === "always_ask"
-          || (nextSaveFlow?.mode === "single" && nextSaveFlow.request.forceFolderPicker)
-          || (!settings.lastUsedFolderPath
-            && !(nextSaveFlow && nextSaveFlow.mode === "single" && nextSaveFlow.request.destinationPath)),
-      ),
-    );
+
+    if (nextSaveFlow?.mode === "single") {
+      const provider = nextSaveFlow.request.provider ?? "dropbox";
+      const folder = nextDestinations[provider];
+      setChangingFolderFor(
+        nextSaveFlow.request.forceFolderPicker || !folder ? provider : null,
+      );
+    } else if (!nextSaveFlow) {
+      setChangingFolderFor("dropbox");
+    } else {
+      setChangingFolderFor(null);
+    }
   }
 
   useEffect(() => {
@@ -173,27 +237,61 @@ export function SaveApp() {
     }
   }
 
-  async function connect() {
-    setConnecting(true);
+  function toggleProvider(provider: StorageProviderId) {
+    setSelectedProviders((current) => {
+      if (current.includes(provider)) {
+        if (current.length === 1) return current;
+        return current.filter((id) => id !== provider);
+      }
+      return [...current, provider];
+    });
+  }
+
+  function authFor(provider: StorageProviderId): DropboxAuthState | GoogleDriveAuthState | null {
+    if (!combinedAuth) return null;
+    return provider === "dropbox" ? combinedAuth.dropbox : combinedAuth.googleDrive;
+  }
+
+  function isSignedIn(provider: StorageProviderId): boolean {
+    return authFor(provider)?.status === "signed_in";
+  }
+
+  async function connect(provider: StorageProviderId) {
+    setConnectingProvider(provider);
     try {
-      await sendBackgroundMessage<DropboxAuthState>({ type: "CONNECT_DROPBOX" });
-      setStatus({ tone: "success", text: "Dropbox connected." });
+      if (provider === "dropbox") {
+        await sendBackgroundMessage<DropboxAuthState>({ type: "CONNECT_DROPBOX" });
+        setStatus({ tone: "success", text: "Dropbox connected." });
+      } else {
+        await sendBackgroundMessage<GoogleDriveAuthState>({ type: "CONNECT_GOOGLE_DRIVE" });
+        setStatus({ tone: "success", text: "Google Drive connected." });
+      }
       await load();
     } catch (error) {
-      setStatus({ tone: "error", text: error instanceof Error ? error.message : "Dropbox connection failed." });
+      setStatus({
+        tone: "error",
+        text: error instanceof Error ? error.message : `${providerDisplayName(provider)} connection failed.`,
+      });
     } finally {
-      setConnecting(false);
+      setConnectingProvider(null);
     }
   }
 
-  async function saveDefaultFolder(path: string) {
+  async function saveDefaultFolder(provider: StorageProviderId, path: string, label: string) {
     setSaving(true);
     setStatus(null);
     try {
-      await sendBackgroundMessage<ExtensionSettings>({ type: "SET_LAST_USED_FOLDER", path });
-      setSelectedPath(path);
-      setDefaultFolder(path);
-      setDefaultSaved(true);
+      await sendBackgroundMessage<ExtensionSettings>({
+        type: "SET_LAST_USED_FOLDER",
+        path,
+        provider,
+        label,
+      });
+      setDestinations((current) => ({ ...current, [provider]: path }));
+      setDestinationLabels((current) => ({ ...current, [provider]: label }));
+      setDefaultFolders((current) => ({ ...current, [provider]: path }));
+      setDefaultSavedProvider(provider);
+      setChangingFolderFor(null);
     } catch (error) {
       setStatus({ tone: "error", text: error instanceof Error ? error.message : "Could not save the default folder." });
     } finally {
@@ -202,7 +300,8 @@ export function SaveApp() {
   }
 
   async function completeSave() {
-    if (!selectedPath || !saveFlow) return;
+    const folderPath = destinations[singleProvider];
+    if (!folderPath || !saveFlow) return;
     try {
       if (!reviewCandidate) {
         setStatus({ tone: "error", text: "No file is selected for saving." });
@@ -212,20 +311,30 @@ export function SaveApp() {
       setSaving(true);
       const result = await sendBackgroundMessage<SaveResult>({
         type: "SAVE_PENDING",
-        destinationPath: selectedPath,
+        destinationPath: folderPath,
+        provider: singleProvider,
         finalFilename: filenameDraft.trim() || resolvedFilename,
       });
       if (result.ok) {
         const switchedToInstant = Boolean(result.switchedToInstant);
-        setSavedTo({ folderPath: selectedPath, filename: result.filename ?? filenameDraft, switchedToInstant });
+        setSavedTo({
+          provider: singleProvider,
+          folderPath,
+          folderLabel: result.folderLabel || destinationLabels[singleProvider] || folderLabel(singleProvider, folderPath),
+          filename: result.filename ?? filenameDraft,
+          switchedToInstant,
+        });
         if (!switchedToInstant) {
           setTimeout(() => window.close(), SUCCESS_CLOSE_DELAY_MS);
         }
       } else if (result.status === "needs_permission" && result.permissionOrigin) {
         setPermissionOrigins([result.permissionOrigin]);
+      } else if (result.status === "needs_auth") {
+        setStatus({ tone: "error", text: result.message });
+        const nextAuth = await sendBackgroundMessage<CombinedAuthState>({ type: "GET_COMBINED_AUTH_STATE" });
+        setCombinedAuth(nextAuth);
       } else {
         setStatus({ tone: "error", text: result.message });
-        await load();
       }
     } catch (error) {
       setStatus({ tone: "error", text: error instanceof Error ? error.message : "The save request failed." });
@@ -244,7 +353,7 @@ export function SaveApp() {
     await completeSave();
   }
 
-  async function allowAndRetryBatch(summary: BatchSummary) {
+  async function allowAndRetryBatch(summary: BatchSummary & { destinations: DestinationMap; providers: StorageProviderId[] }) {
     if (!(await requestSitePermissions(summary.permissionOrigins))) return;
     await saveBatch(
       summary.failures.map((failure) => failure.asset),
@@ -252,26 +361,42 @@ export function SaveApp() {
     );
   }
 
-  async function saveBatch(assets: AssetCandidate[], previous?: BatchSummary) {
-    if (!selectedPath || !assets.length) return;
-    const folderPath = selectedPath;
+  async function saveBatch(
+    assets: AssetCandidate[],
+    previous?: BatchSummary & { destinations: DestinationMap; providers: StorageProviderId[] },
+  ) {
+    const providers = previous?.providers ?? selectedProviders;
+    if (!assets.length || !providers.length) return;
+    for (const provider of providers) {
+      if (!destinations[provider]) {
+        setStatus({ tone: "error", text: `Choose a ${providerDisplayName(provider)} folder before saving.` });
+        return;
+      }
+      if (!isSignedIn(provider)) {
+        setStatus({ tone: "error", text: `Connect ${providerDisplayName(provider)} to continue.` });
+        return;
+      }
+    }
+
     const finalFilename = assets.length === 1 && shouldPromptForRename ? filenameDraft.trim() || null : null;
     const results: BatchItemResult[] = [];
+    const jobs = providers.flatMap((provider) => assets.map((asset) => ({ provider, asset })));
     setSaving(true);
     setStatus(null);
-    for (const [index, asset] of assets.entries()) {
-      setBatchProgress({ current: index + 1, total: assets.length });
+    for (const [index, job] of jobs.entries()) {
+      setBatchProgress({ current: index + 1, total: jobs.length });
       try {
         const result = await sendBackgroundMessage<SaveResult>({
           type: "SAVE_PENDING",
-          destinationPath: folderPath,
-          candidate: asset,
+          destinationPath: destinations[job.provider]!,
+          provider: job.provider,
+          candidate: job.asset,
           finalFilename,
         });
-        results.push({ asset, result });
+        results.push({ asset: job.asset, result });
       } catch (error) {
         results.push({
-          asset,
+          asset: job.asset,
           result: {
             ok: false,
             status: "failed",
@@ -292,8 +417,11 @@ export function SaveApp() {
           switchedToInstant: previous.switchedToInstant || summary.switchedToInstant,
           permissionOrigins: summary.permissionOrigins,
         }
-      : summary;
-    setBatchResult({ ...merged, folderPath });
+      : {
+          ...summary,
+          total: jobs.length,
+        };
+    setBatchResult({ ...merged, destinations, providers });
     if (!merged.failures.length && !merged.switchedToInstant) {
       setTimeout(() => window.close(), SUCCESS_CLOSE_DELAY_MS);
     }
@@ -315,7 +443,12 @@ export function SaveApp() {
     }
   }
 
-  function renderSwitchedNotice(folderPath: string, showDone: boolean) {
+  function renderSwitchedNotice(
+    folderPath: string,
+    provider: StorageProviderId,
+    showDone: boolean,
+    knownLabel?: string | null,
+  ) {
     return (
       <div className="stack" style={{ width: "100%", textAlign: "left" }}>
         {keptReviewing ? (
@@ -323,8 +456,9 @@ export function SaveApp() {
         ) : (
           <>
             <StatusMessage tone="info">
-              From now on, saves go straight to <strong>{formatFolderPath(folderPath)}</strong> without
-              this window. You&apos;ll see a notice on the page when each one finishes.
+              From now on, saves go straight to{" "}
+              <strong>{folderLabel(provider, folderPath, knownLabel)}</strong> without this window. You&apos;ll see a
+              notice on the page when each one finishes.
             </StatusMessage>
             <div className="stack-sm" style={{ alignItems: "center" }}>
               {showDone ? <Button onClick={() => window.close()}>Done</Button> : null}
@@ -343,6 +477,31 @@ export function SaveApp() {
     );
   }
 
+  function renderFolderRows(providers: StorageProviderId[]) {
+    return (
+      <div className="stack">
+        {providers.map((provider) => {
+          const path = destinations[provider];
+          return (
+            <div className="row row-between" key={provider}>
+              <div className="row" style={{ minWidth: 0 }}>
+                <span className="muted">{providerDisplayName(provider)}</span>
+                <span className="path-pill" title={path || undefined}>
+                  {folderLabel(provider, path, destinationLabels[provider])}
+                </span>
+              </div>
+              {changingFolderFor !== provider ? (
+                <Button disabled={saving} onClick={() => setChangingFolderFor(provider)} variant="ghost">
+                  Change
+                </Button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   if (!loaded) {
     return (
       <div className="app-shell save-shell">
@@ -355,16 +514,21 @@ export function SaveApp() {
   }
 
   if (savedTo) {
+    const openUrl = getStorageProvider(savedTo.provider).getWebUrl(savedTo.folderPath);
     return (
       <div className="app-shell save-shell">
         <section className="panel stack" style={{ alignItems: "center", textAlign: "center", padding: 32 }}>
           <span className="badge success" style={{ fontSize: 20, padding: "8px 14px" }}>✓</span>
-          <div className="section-title">Saved to {formatFolderPath(savedTo.folderPath)}</div>
+          <div className="section-title">
+            Saved to {savedTo.folderLabel}
+          </div>
           <div className="muted break-anywhere">{savedTo.filename}</div>
-          <a href={getDropboxWebUrl(savedTo.folderPath)} rel="noopener noreferrer" target="_blank">
-            Open in Dropbox
+          <a href={openUrl} rel="noopener noreferrer" target="_blank">
+            Open in {providerDisplayName(savedTo.provider)}
           </a>
-          {savedTo.switchedToInstant ? renderSwitchedNotice(savedTo.folderPath, true) : null}
+          {savedTo.switchedToInstant
+            ? renderSwitchedNotice(savedTo.folderPath, savedTo.provider, true, savedTo.folderLabel)
+            : null}
         </section>
       </div>
     );
@@ -372,6 +536,8 @@ export function SaveApp() {
 
   if (batchResult) {
     const allSaved = !batchResult.failures.length;
+    const primaryProvider = batchResult.providers[0] ?? "dropbox";
+    const primaryFolder = batchResult.destinations[primaryProvider];
     return (
       <div className="app-shell save-shell">
         <section className="panel stack" style={{ alignItems: "center", textAlign: "center", padding: 32 }}>
@@ -380,20 +546,30 @@ export function SaveApp() {
           </span>
           <div className="section-title">
             {allSaved
-              ? `Saved ${pluralizeFiles(batchResult.savedCount)} to ${formatFolderPath(batchResult.folderPath)}`
+              ? `Saved ${pluralizeFiles(batchResult.savedCount)}`
               : `Saved ${batchResult.savedCount} of ${pluralizeFiles(batchResult.total)}`}
           </div>
-          {!allSaved ? <div className="muted">Folder: {formatFolderPath(batchResult.folderPath)}</div> : null}
-          {batchResult.savedCount ? (
-            <a href={getDropboxWebUrl(batchResult.folderPath)} rel="noopener noreferrer" target="_blank">
-              Open in Dropbox
-            </a>
-          ) : null}
+          <div className="stack-sm">
+            {batchResult.providers.map((provider) => {
+              const folder = batchResult.destinations[provider];
+              if (!folder) return null;
+              return (
+                <a
+                  href={getStorageProvider(provider).getWebUrl(folder)}
+                  key={provider}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  Open in {providerDisplayName(provider)}
+                </a>
+              );
+            })}
+          </div>
           {!allSaved ? (
             <div className="stack" style={{ width: "100%", textAlign: "left" }}>
               <ul className="batch-failures">
                 {batchResult.failures.map((failure) => (
-                  <li key={failure.asset.sourceUrl} title={failure.asset.sourceUrl}>
+                  <li key={`${failure.asset.sourceUrl}-${failure.message}`} title={failure.asset.sourceUrl}>
                     <strong className="break-anywhere">{failure.filename}</strong>
                     <span className="muted">{failure.message}</span>
                   </li>
@@ -428,49 +604,52 @@ export function SaveApp() {
               </div>
             </div>
           ) : null}
-          {batchResult.switchedToInstant ? renderSwitchedNotice(batchResult.folderPath, allSaved) : null}
+          {batchResult.switchedToInstant && primaryFolder
+            ? renderSwitchedNotice(
+                primaryFolder,
+                primaryProvider,
+                allSaved,
+                destinationLabels[primaryProvider],
+              )
+            : null}
         </section>
       </div>
     );
   }
 
-  if (defaultSaved && defaultFolder) {
+  if (defaultSavedProvider && defaultFolders[defaultSavedProvider]) {
+    const provider = defaultSavedProvider;
+    const folder = defaultFolders[provider]!;
     return (
       <div className="app-shell save-shell">
         <section className="panel stack" style={{ alignItems: "center", textAlign: "center", padding: 32 }}>
           <span className="badge success" style={{ fontSize: 20, padding: "8px 14px" }}>✓</span>
           <div className="section-title">Default folder set</div>
-          <span className="path-pill" title={defaultFolder}>{formatFolderPath(defaultFolder)}</span>
+          <span className="path-pill" title={folder}>
+            {folderLabel(provider, folder, destinationLabels[provider])}
+          </span>
           <div className="muted">
-            New saves go here. You can still pick a different folder while saving.
+            New {providerDisplayName(provider)} saves go here. You can still pick a different folder while saving.
           </div>
           <div className="actions-wrap" style={{ justifyContent: "center" }}>
             <Button onClick={() => window.close()}>Done</Button>
-            <Button onClick={() => setDefaultSaved(false)} variant="secondary">
+            <Button onClick={() => setDefaultSavedProvider(null)} variant="secondary">
               Choose another folder
             </Button>
           </div>
-          <a href={getDropboxWebUrl(defaultFolder)} rel="noopener noreferrer" target="_blank">
-            Open in Dropbox
+          <a href={getStorageProvider(provider).getWebUrl(folder)} rel="noopener noreferrer" target="_blank">
+            Open in {providerDisplayName(provider)}
           </a>
         </section>
       </div>
     );
   }
 
-  const folderRow = (
-    <div className="row row-between">
-      <div className="row" style={{ minWidth: 0 }}>
-        <span className="muted">Folder</span>
-        <span className="path-pill" title={selectedPath || "/"}>{formatFolderPath(selectedPath || "/")}</span>
-      </div>
-      {!changingFolder ? (
-        <Button disabled={saving} onClick={() => setChangingFolder(true)} variant="ghost">
-          Change
-        </Button>
-      ) : null}
-    </div>
-  );
+  const needsAuthProviders = activeProviders.filter((provider) => !isSignedIn(provider));
+  const canSaveScan =
+    selectedAssets.length > 0
+    && selectedProviders.length > 0
+    && selectedProviders.every((provider) => Boolean(destinations[provider]) && isSignedIn(provider));
 
   return (
     <div className="app-shell save-shell">
@@ -480,21 +659,34 @@ export function SaveApp() {
         </div>
         <h2>
           {saveFlow?.mode === "scan"
-            ? "Choose the files you want to save to Dropbox."
+            ? "Choose the files and where to save them."
             : saveFlow
-              ? "Check the name and folder, then save."
+              ? `Check the name and ${providerDisplayName(singleProvider)} folder, then save.`
               : "Where should your saves go?"}
         </h2>
         {!saveFlow ? (
           <>
             <p>Open a folder below, then set it as the default. You can still pick another folder while saving.</p>
-            <div className="row current-default">
-              <span className="muted">Current default</span>
-              {defaultFolder ? (
-                <span className="path-pill" title={defaultFolder}>{formatFolderPath(defaultFolder)}</span>
-              ) : (
-                <span className="badge neutral">Not set yet</span>
-              )}
+            <div className="stack-sm">
+              {listStorageProviders().map((provider) => (
+                <div className="row current-default" key={provider.id}>
+                  <span className="muted">{provider.displayName}</span>
+                  {defaultFolders[provider.id] ? (
+                    <span className="path-pill" title={defaultFolders[provider.id] ?? undefined}>
+                      {folderLabel(
+                        provider.id,
+                        defaultFolders[provider.id],
+                        destinationLabels[provider.id],
+                      )}
+                    </span>
+                  ) : (
+                    <span className="badge neutral">Not set yet</span>
+                  )}
+                  <Button onClick={() => setChangingFolderFor(provider.id)} variant="ghost">
+                    Set
+                  </Button>
+                </div>
+              ))}
             </div>
           </>
         ) : null}
@@ -518,18 +710,48 @@ export function SaveApp() {
         </StatusMessage>
       ) : null}
 
-      {authState && authState.status !== "signed_in" ? (
+      {needsAuthProviders.map((provider) => {
+        const auth = authFor(provider);
+        if (!auth) return null;
+        return (
+          <section className="panel stack" key={provider}>
+            {provider === "dropbox" ? (
+              <DropboxConnectCard
+                authState={auth as DropboxAuthState}
+                connecting={connectingProvider === "dropbox"}
+                onConnect={() => void connect("dropbox")}
+                onUseOwnApp={
+                  auth.status === "missing_app_key" ? () => void openSettingsTab("setup") : undefined
+                }
+              />
+            ) : (
+              <GoogleDriveConnectCard
+                authState={auth as GoogleDriveAuthState}
+                connecting={connectingProvider === "google_drive"}
+                onConnect={() => void connect("google_drive")}
+              />
+            )}
+          </section>
+        );
+      })}
+
+      {saveFlow?.mode === "scan" ? (
         <section className="panel stack">
-          <DropboxConnectCard
-            authState={authState}
-            connecting={connecting}
-            onConnect={() => void connect()}
-            onUseOwnApp={
-              authState.status === "missing_app_key"
-                ? () => void openSettingsTab("setup")
-                : undefined
-            }
-          />
+          <div className="section-title">Save to</div>
+          <div className="muted">Select at least one destination.</div>
+          <div className="stack-sm">
+            {listStorageProviders().map((provider) => (
+              <label className="asset-toolbar-toggle" key={provider.id}>
+                <input
+                  checked={selectedProviders.includes(provider.id)}
+                  disabled={saving}
+                  onChange={() => toggleProvider(provider.id)}
+                  type="checkbox"
+                />
+                {provider.displayName}
+              </label>
+            ))}
+          </div>
         </section>
       ) : null}
 
@@ -619,10 +841,10 @@ export function SaveApp() {
           ) : shouldPromptForRename && selectedAssets.length > 1 ? (
             <div className="muted">Select a single file to rename it.</div>
           ) : null}
-          {folderRow}
+          {renderFolderRows(selectedProviders)}
           <Button
             block
-            disabled={!selectedPath || !selectedAssets.length}
+            disabled={!canSaveScan}
             large
             loading={saving}
             onClick={() => void saveBatch(selectedAssets)}
@@ -643,6 +865,8 @@ export function SaveApp() {
             <div className="section-title">Ready to save</div>
             <span className="badge neutral">
               {reviewCandidate.triggerKind === "linked_file" ? "File from link" : "Media asset"}
+              {" · "}
+              {providerDisplayName(singleProvider)}
             </span>
           </div>
           {shouldPromptForRename ? (
@@ -663,41 +887,81 @@ export function SaveApp() {
           <div className="muted truncate" title={reviewCandidate.sourceUrl}>
             From {reviewCandidate.sourceUrl}
           </div>
-          {folderRow}
+          {renderFolderRows([singleProvider])}
           {permissionOrigins.length ? (
             <StatusMessage tone="info">
-              Dropbox couldn&apos;t fetch this file by itself, so Web Saver needs to download it from your browser.
-              Allow access to <strong>{permissionOrigins.map(getPatternHost).join(", ")}</strong> to continue.
-              Chrome remembers your choice for that site.
+              {providerDisplayName(singleProvider)} couldn&apos;t fetch this file by itself, so Web Saver needs to
+              download it from your browser. Allow access to{" "}
+              <strong>{permissionOrigins.map(getPatternHost).join(", ")}</strong> to continue. Chrome remembers your
+              choice for that site.
             </StatusMessage>
           ) : null}
           <Button
             block
-            disabled={!selectedPath}
+            disabled={!destinations[singleProvider] || !isSignedIn(singleProvider)}
             large
             loading={saving}
             onClick={() => void (permissionOrigins.length ? allowAndSave() : completeSave())}
           >
-            {saving ? "Saving…" : permissionOrigins.length ? "Allow access and save" : "Save to Dropbox"}
+            {saving
+              ? "Saving…"
+              : permissionOrigins.length
+                ? "Allow access and save"
+                : `Save to ${providerDisplayName(singleProvider)}`}
           </Button>
         </section>
       ) : null}
 
-      {authState?.status === "signed_in" && (!saveFlow || changingFolder) ? (
+      {changingFolderFor && isSignedIn(changingFolderFor) && (saveFlow || !defaultSavedProvider) ? (
         <FolderPicker
           confirmLabel={saveFlow ? "Use this folder" : "Set as default folder"}
           confirming={!saveFlow && saving}
-          defaultPath={defaultFolder}
-          initialPath={selectedPath || "/"}
-          onCancel={saveFlow ? () => setChangingFolder(false) : undefined}
-          onConfirm={(path) => {
+          defaultPath={defaultFolders[changingFolderFor]}
+          initialPath={
+            destinations[changingFolderFor]
+            || getStorageProvider(changingFolderFor).getRootFolderKey()
+          }
+          onCancel={saveFlow ? () => setChangingFolderFor(null) : undefined}
+          onConfirm={(path, label) => {
             if (!saveFlow) {
-              void saveDefaultFolder(path);
+              void saveDefaultFolder(changingFolderFor, path, label);
               return;
             }
-            setSelectedPath(path);
-            setChangingFolder(false);
+            const provider = changingFolderFor;
+            setDestinations((current) => ({ ...current, [provider]: path }));
+            setDestinationLabels((current) => ({ ...current, [provider]: label }));
+            setChangingFolderFor(null);
+            setSaveFlow((current) => {
+              if (current?.mode === "single") {
+                return {
+                  ...current,
+                  request: {
+                    ...current.request,
+                    destinationPath: path,
+                    forceFolderPicker: false,
+                  },
+                };
+              }
+              if (current?.mode === "scan") {
+                return {
+                  ...current,
+                  destinations: {
+                    dropbox: current.destinations?.dropbox ?? null,
+                    google_drive: current.destinations?.google_drive ?? null,
+                    [provider]: path,
+                  },
+                };
+              }
+              return current;
+            });
+            void sendBackgroundMessage<ExtensionSettings>({
+              type: "SET_LAST_USED_FOLDER",
+              path,
+              provider,
+              label,
+            });
           }}
+          provider={changingFolderFor}
         />
       ) : null}
 

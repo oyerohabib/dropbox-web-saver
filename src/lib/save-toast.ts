@@ -89,11 +89,27 @@ const STYLES = `
   }
 `;
 
-const TITLES: Record<Exclude<SaveToastStatus["state"], "hidden">, string> = {
-  saving: "Saving to Dropbox…",
-  success: "Saved to Dropbox",
-  error: "Couldn't save to Dropbox",
-};
+function toastTitles(status: SaveToastStatus): Record<Exclude<SaveToastStatus["state"], "hidden">, string> {
+  if (status.message?.includes("Google Drive")) {
+    return {
+      saving: "Saving to Google Drive…",
+      success: "Saved to Google Drive",
+      error: "Couldn't save to Google Drive",
+    };
+  }
+  if (status.message?.includes("Dropbox") || status.dropboxUrl) {
+    return {
+      saving: "Saving to Dropbox…",
+      success: "Saved to Dropbox",
+      error: "Couldn't save to Dropbox",
+    };
+  }
+  return {
+    saving: "Saving…",
+    success: "Saved",
+    error: "Couldn't save",
+  };
+}
 
 let toastRoot: ShadowRoot | null = null;
 let hideTimer: ReturnType<typeof setTimeout> | undefined;
@@ -144,11 +160,18 @@ export function showSaveToast(status: SaveToastStatus) {
   const icon = createElement("div", "icon", status.state === "success" ? "✓" : status.state === "error" ? "!" : "");
   if (status.state === "saving") icon.append(createElement("div", "spinner"));
 
+  const titles = toastTitles(status);
+  const openUrl = status.openUrl || status.dropboxUrl;
+  const openLabel = openUrl?.includes("drive.google.com")
+    ? "Open in Google Drive"
+    : openUrl
+      ? "Open in Dropbox"
+      : null;
   const body = createElement("div", "body");
-  body.append(createElement("div", "title", TITLES[status.state]), createElement("div", "detail", describeStatus(status)));
-  if (status.state === "success" && status.dropboxUrl) {
-    const link = createElement("a", "link", "Open in Dropbox") as HTMLAnchorElement;
-    link.href = status.dropboxUrl;
+  body.append(createElement("div", "title", titles[status.state]), createElement("div", "detail", describeStatus(status)));
+  if (status.state === "success" && openUrl && openLabel) {
+    const link = createElement("a", "link", openLabel) as HTMLAnchorElement;
+    link.href = openUrl;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     body.append(link);

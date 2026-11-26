@@ -109,16 +109,32 @@ export function PreferencesForm({ variant, onChooseFolder, onReady }: Preference
         label="Let me rename files before saving"
         onChange={(checked) => void update({ promptForRename: checked })}
       />
-      <div className="row row-between">
-        <div className="row" style={{ minWidth: 0 }}>
-          <span className="muted nowrap">Default folder</span>
-          <span className="path-pill" title={settings.lastUsedFolderPath ?? undefined}>
-            {settings.lastUsedFolderPath || "Not set"}
-          </span>
+      <div className="stack-sm">
+        <div className="row row-between">
+          <div className="row" style={{ minWidth: 0 }}>
+            <span className="muted nowrap">Dropbox folder</span>
+            <span className="path-pill" title={settings.lastUsedFolders.dropbox ?? undefined}>
+              {settings.lastUsedFolders.dropbox || "Not set"}
+            </span>
+          </div>
+          <Button onClick={onChooseFolder} variant="ghost">
+            Change
+          </Button>
         </div>
-        <Button onClick={onChooseFolder} variant="ghost">
-          Change
-        </Button>
+        <div className="row row-between">
+          <div className="row" style={{ minWidth: 0 }}>
+            <span className="muted nowrap">Google Drive folder</span>
+            <span className="path-pill" title={settings.lastUsedFolders.google_drive ?? undefined}>
+              {settings.lastUsedFolderLabels.google_drive
+                || (settings.lastUsedFolders.google_drive === "root" ? "My Drive (top level)" : null)
+                || settings.lastUsedFolders.google_drive
+                || "Not set"}
+            </span>
+          </div>
+          <Button onClick={onChooseFolder} variant="ghost">
+            Change
+          </Button>
+        </div>
       </div>
       {savedAt !== null || error ? (
         <div aria-live="polite" className="row">

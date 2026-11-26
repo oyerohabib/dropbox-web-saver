@@ -1,19 +1,29 @@
 import { Fragment, useEffect, useState } from "react";
-import type { FolderEntry } from "../lib/types";
+import type { FolderEntry, StorageProviderId } from "../lib/types";
 import { sendBackgroundMessage } from "../lib/browser";
-import { formatFolderPath, getBreadcrumbs, getFolderName, getParentPath, isSameFolder } from "../lib/utils/folder-path";
+import { getStorageProvider } from "../lib/providers";
+import {
+  formatFolderPath,
+  getBreadcrumbs,
+  getFolderName,
+  getParentPath,
+  isSameFolder,
+  type FolderCrumb,
+} from "../lib/utils/folder-path";
 import { Button, Skeleton, StatusMessage } from "./ui";
 
 interface FolderPickerProps {
+  provider?: StorageProviderId;
   initialPath: string;
   confirmLabel: string;
-  onConfirm: (path: string) => void;
+  onConfirm: (path: string, label: string) => void;
   onCancel?: () => void;
   defaultPath?: string | null;
   confirming?: boolean;
 }
 
 export function FolderPicker({
+  provider = "dropbox",
   initialPath,
   confirmLabel,
   onConfirm,
@@ -21,7 +31,10 @@ export function FolderPicker({
   defaultPath,
   confirming = false,
 }: FolderPickerProps) {
-  const [currentPath, setCurrentPath] = useState(initialPath || "/");
+  const storageProvider = getStorageProvider(provider);
+  const rootKey = storageProvider.getRootFolderKey();
+  const [currentPath, setCurrentPath] = useState(initialPath || rootKey);
+  const [trail, setTrail] = useState<FolderCrumb[]>([]);
   const [folders, setFolders] = useState<FolderEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,16 +42,29 @@ export function FolderPicker({
   const [newFolderName, setNewFolderName] = useState("");
   const [creating, setCreating] = useState(false);
 
-  async function loadFolders(path: string) {
+  async function loadFolders(path: string, nextTrail: FolderCrumb[] = trail) {
     setLoading(true);
     setError(null);
     try {
       const entries = await sendBackgroundMessage<FolderEntry[]>({
         type: "LIST_FOLDERS",
         path,
+        provider,
       });
       setFolders(entries);
       setCurrentPath(path);
+      if (provider === "google_drive") {
+        if (path !== rootKey && nextTrail.length === 0) {
+          const name = await sendBackgroundMessage<string>({
+            type: "RESOLVE_FOLDER_LABEL",
+            path,
+            provider,
+          });
+          setTrail([{ label: name, path }]);
+        } else {
+          setTrail(nextTrail);
+        }
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load folders.");
     } finally {
@@ -47,8 +73,9 @@ export function FolderPicker({
   }
 
   useEffect(() => {
-    void loadFolders(initialPath || "/");
-  }, [initialPath]);
+    void loadFolders(initialPath || rootKey, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when provider/path change
+  }, [initialPath, provider, rootKey]);
 
   async function createFolder() {
     const name = newFolderName.trim();
@@ -60,10 +87,15 @@ export function FolderPicker({
         type: "CREATE_FOLDER",
         parentPath: currentPath,
         name,
+        provider,
       });
       setNewFolderName("");
       setShowCreate(false);
-      await loadFolders(createdPath);
+      const createdTrail =
+        provider === "google_drive"
+          ? [...trail, { label: name, path: createdPath }]
+          : trail;
+      await loadFolders(createdPath, createdTrail);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Could not create folder.");
     } finally {
@@ -71,9 +103,47 @@ export function FolderPicker({
     }
   }
 
-  const crumbs = getBreadcrumbs(currentPath);
-  const currentName = getFolderName(currentPath);
-  const isRoot = currentPath === "/";
+  function openFolder(folder: FolderEntry) {
+    if (provider === "google_drive") {
+      void loadFolders(folder.id, [...trail, { label: folder.name, path: folder.id }]);
+      return;
+    }
+    void loadFolders(folder.pathDisplay);
+  }
+
+  function openCrumb(crumb: FolderCrumb) {
+    if (provider === "google_drive") {
+      const index = trail.findIndex((item) => item.path === crumb.path);
+      const nextTrail = crumb.path === rootKey ? [] : trail.slice(0, index + 1);
+      void loadFolders(crumb.path, nextTrail);
+      return;
+    }
+    void loadFolders(crumb.path);
+  }
+
+  function goUp() {
+    if (provider === "google_drive") {
+      if (trail.length === 0) return;
+      const nextTrail = trail.slice(0, -1);
+      const parent = nextTrail.at(-1)?.path ?? rootKey;
+      void loadFolders(parent, nextTrail);
+      return;
+    }
+    void loadFolders(getParentPath(currentPath));
+  }
+
+  const crumbs = getBreadcrumbs(currentPath, provider, trail);
+  const currentName =
+    provider === "google_drive"
+      ? trail.at(-1)?.label ?? getFolderName(currentPath, provider)
+      : getFolderName(currentPath, provider);
+  const isRoot = currentPath === rootKey;
+  const sameFolder = (a: string | null | undefined, b: string | null | undefined) =>
+    provider === "google_drive" ? Boolean(a && b && a === b) : isSameFolder(a, b);
+  const selectedLabel =
+    provider === "google_drive"
+      ? storageProvider.formatFolderLabel(currentPath, trail.at(-1)?.label)
+      : formatFolderPath(currentPath, provider);
 
   return (
     <div className="panel stack folder-picker">
@@ -89,7 +159,7 @@ export function FolderPicker({
                 <button
                   className="crumb"
                   disabled={loading}
-                  onClick={() => void loadFolders(crumb.path)}
+                  onClick={() => openCrumb(crumb)}
                   title={crumb.path}
                   type="button"
                 >
@@ -140,10 +210,15 @@ export function FolderPicker({
       <div className="folder-list">
         {loading ? <Skeleton rows={4} /> : null}
         {!loading && !isRoot ? (
-          <button className="folder-row folder-up" onClick={() => void loadFolders(getParentPath(currentPath))} type="button">
+          <button className="folder-row folder-up" onClick={goUp} type="button">
             <span className="folder-row-main">
               <span aria-hidden="true">↑</span>
-              <span className="truncate">Up to {getFolderName(getParentPath(currentPath))}</span>
+              <span className="truncate">
+                Up to{" "}
+                {provider === "google_drive"
+                  ? trail.at(-2)?.label ?? getFolderName(rootKey, provider)
+                  : getFolderName(getParentPath(currentPath), provider)}
+              </span>
             </span>
           </button>
         ) : null}
@@ -159,14 +234,19 @@ export function FolderPicker({
               <button
                 className="folder-row"
                 key={folder.id}
-                onClick={() => void loadFolders(folder.pathDisplay)}
-                title={`Open ${folder.pathDisplay}`}
+                onClick={() => openFolder(folder)}
+                title={`Open ${folder.name}`}
                 type="button"
               >
                 <span className="folder-row-main">
                   <span aria-hidden="true">📁</span>
                   <span className="truncate">{folder.name}</span>
-                  {isSameFolder(folder.pathDisplay, defaultPath) ? <span className="badge accent">Default</span> : null}
+                  {sameFolder(
+                    provider === "google_drive" ? folder.id : folder.pathDisplay,
+                    defaultPath,
+                  ) ? (
+                    <span className="badge accent">Default</span>
+                  ) : null}
                 </span>
                 <span aria-hidden="true" className="muted">›</span>
               </button>
@@ -178,8 +258,8 @@ export function FolderPicker({
         <div className="stack-sm" style={{ minWidth: 0 }}>
           <span className="muted">Selected folder</span>
           <span className="row" style={{ minWidth: 0 }}>
-            <span className="path-pill" title={currentPath}>{formatFolderPath(currentPath)}</span>
-            {isSameFolder(currentPath, defaultPath) ? <span className="badge accent">Default</span> : null}
+            <span className="path-pill" title={currentPath}>{selectedLabel}</span>
+            {sameFolder(currentPath, defaultPath) ? <span className="badge accent">Default</span> : null}
           </span>
         </div>
         <div className="row">
@@ -188,7 +268,7 @@ export function FolderPicker({
               Cancel
             </Button>
           ) : null}
-          <Button disabled={loading} loading={confirming} onClick={() => onConfirm(currentPath)}>
+          <Button disabled={loading} loading={confirming} onClick={() => onConfirm(currentPath, selectedLabel)}>
             {confirmLabel}
           </Button>
         </div>
