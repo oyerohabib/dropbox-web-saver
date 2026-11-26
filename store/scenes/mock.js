@@ -132,7 +132,7 @@
     runtime: {
       id: "abcdefghijklmnop",
       getURL: (path) => `/${path}`,
-      getManifest: () => ({ version: "0.2.0" }),
+      getManifest: () => ({ version: "0.4.0" }),
       onMessage: noopEvent,
       sendMessage: async (message) => {
         if (message.type === "LIST_FOLDERS") return listFolders(message.path);
