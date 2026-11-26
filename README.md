@@ -5,9 +5,7 @@ This project was previously named **Web Saver for Dropbox**. The listing is now 
 [![CI](https://github.com/oyerohabib/dropbox-web-saver/actions/workflows/ci.yml/badge.svg)](https://github.com/oyerohabib/dropbox-web-saver/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Open-source Chromium extension (Chrome, Brave, Edge) for saving images, videos, audio, and linked files from any web page straight into Dropbox or Google Drive, without downloading them locally first. It has no server: you sign in in the browser, and your tokens never leave your computer. Connecting takes about 5 seconds with the built-in Dropbox app, or the same way for Google Drive. The [former Dropbox setup](#former-dropbox-setup) is still available.
-
-Contributions and feedback are welcome. See [Contributing](#contributing) and [Feedback and bug reports](#feedback-and-bug-reports).
+Open-source Chromium extension (Chrome, Brave, Edge) that saves images, videos, audio, and linked files from any page into Dropbox or Google Drive without downloading them first. There is no server; you sign in in the browser and tokens stay on this computer. Connecting takes about 5 seconds for Dropbox, and the same for Google Drive.
 
 > Web Files to Cloud is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or Google. It uses its own icon rather than the Dropbox or Google Drive logos, in line with the [Dropbox brand guidelines](https://www.dropbox.com/developers/reference/branding-guide).
 
@@ -15,27 +13,22 @@ Contributions and feedback are welcome. See [Contributing](#contributing) and [F
 
 [![How to Save Web Assets to Dropbox](https://cdn.loom.com/sessions/thumbnails/c74743c06c9241ceb1d7588408c8e656-ef66f4a14827963e.gif)](https://www.loom.com/share/c74743c06c9241ceb1d7588408c8e656)
 
-Watch the walkthrough: https://www.loom.com/share/c74743c06c9241ceb1d7588408c8e656
-
 ## Features
 
-- **Connect Dropbox** in about 5 seconds: sign in, if asked, and click **Allow**. **Connect Google Drive** the same way when a Google client id is configured
-- Right-click actions: **Save this image / video / audio to…** and **Save the file this link opens to…**, with a submenu for **Dropbox** or **Google Drive**
-- **Find files on this page**: lists the images, videos, audio files, and downloadable links on the current page with thumbnails, so you can tick several and save them to one or both clouds
-- Review window before each save: see the filename, rename it, and change the destination folder
-- Dropbox folder browser with clickable breadcrumbs, an "Up" row, inline **New folder** creation, and a **Default** badge on the current default folder
-- Per-user save preferences, reachable from the popup, the toolbar icon's right-click menu, the settings page, and every review window
-- Save feedback: an in-page toast (saving, saved with an **Open in Dropbox** link, or failed with the reason) plus a toolbar badge
-- Hybrid upload strategy:
-  - Dropbox-side URL import for public assets
-  - Direct upload of bytes fetched with the page's login session for private or same-site assets
-- No access to websites at install: the extension only touches the tab you right-click or scan (`activeTab`), and asks you to allow a single site when a file on it can only be downloaded from your browser
-- Recent saves log (last 20) with relative times, folder links, and a **Clear history** button
-- Supports common image, video, audio, document, archive, and design formats. See [Supported files](#supported-files).
+- **Connect Dropbox** or **Connect Google Drive**: sign in if asked, then **Allow**. A personal Dropbox app is optional in settings.
+- Right-click **Save this image / video / audio to…** or **Save the file this link opens to…**, then **Dropbox** or **Google Drive**. If an image sits inside a link, both items appear: the image item saves what you see, the link item saves the destination. Ordinary web-page links are rejected.
+- **Find files on this page** (right-click empty space, or **Scan this page** in the popup): videos, audio, and linked files first, then images from largest to smallest. Nothing is ticked until you choose. Small images (avatars, icons) stay hidden unless you turn on **Show small images**. Tick files, **Select all**, or **Clear**, then save to one or both clouds. Keep the window open while it saves; **Retry failed** retries only failures.
+- Review window: filename, optional rename, and folder. **Change** opens the folder browser (breadcrumbs, **Up**, **+ New folder**). **Use this folder** applies to that save; **Cancel** keeps the previous folder; closing the window cancels the save. Set a default from the popup or settings.
+- Preferences from the popup, the toolbar icon menu, settings, and every review window. See [Save preferences](#save-preferences).
+- In-page toast (saving, saved with **Open in Dropbox** or **Open in Google Drive**, or the error) plus a toolbar badge (`…`, `OK`, `ERR`). Browser-internal pages show only the badge.
+- Public files can be imported by Dropbox from the URL; private or same-site files are fetched with the page's login session and uploaded.
+- No website access at install (`activeTab`). If a file's site (for example a CDN) blocks the download, the save window asks you to allow that one site.
+- Last 20 saves with folder links and **Clear history**.
+- Common image, video, audio, document, archive, and design formats. See [Supported files](#supported-files).
 
 ## Supported files
 
-Right-clicking an image, video, or audio element saves it whatever its format, because the extension uses the file the element is showing.
+Right-clicking an image, video, or audio element saves whatever format that element is showing.
 
 Links and **Find files on this page** recognise files by the extension in the URL:
 
@@ -48,53 +41,31 @@ Links and **Find files on this page** recognise files by the extension in the UR
 | Archives | zip, rar, 7z, tar, gz |
 | Design files | psd, ai, eps, fig, sketch, xd |
 
-A link to any other file still works when it has a `download` attribute, or when the site sends it as a download rather than a web page. Streamed video and `blob:` sources can't be saved (see [Known limitations](#known-limitations)). The settings page shows the same list under **Supported files**.
+A link to any other file still works when it has a `download` attribute, or when the site sends it as a download rather than a web page. Streamed video and `blob:` sources cannot be saved (see [Known limitations](#known-limitations)). The same list is on the settings page. Update this table when you change `src/lib/utils/file-types.ts`; the scanner, link check, and settings page all read from it.
 
-The list lives in `src/lib/utils/file-types.ts`. The scanner, the right-click link check, and the settings page all read from it, so update this table when you change it.
+## Connect
 
-## Connect Dropbox
+**Dropbox:** click **Connect Dropbox**, sign in if asked, click **Allow**. Tokens stay in this browser. The package includes a public app key (`WXT_DROPBOX_APP_KEY`) that only identifies the extension; it is not a password. Register `https://<extension-id>.chromiumapp.org/dropbox` on that Dropbox app with **Allow public clients**. Do not add a new `manifest.key` after publishing: that would change the id and the redirect would stop matching.
 
-Most people are done in about 5 seconds:
+**Google Drive:** uses a Web application OAuth client (`WXT_GOOGLE_CLIENT_ID` and `WXT_GOOGLE_CLIENT_SECRET` in gitignored `.env`). Chrome Extension clients do not work. Redirect URI: `https://<extension-id>.chromiumapp.org/`. Scopes: `drive` (list existing folders and save into them) and `userinfo.email`.
 
-1. Click **Connect Dropbox** in the popup, on the settings page, or in the review window.
-2. A Dropbox window opens. Sign in if Dropbox asks you to.
-3. Click **Allow**.
-
-That is the whole setup. Web Saver then remembers the connection in this browser. The next save does not ask you to sign in again. There is no Web Saver server, and no app secret is stored. Sign-in is OAuth with PKCE: Dropbox gives the extension a short-lived access token and a refresh token, and those stay in this browser's extension storage.
-
-The extension ships with one public Dropbox app key (`WXT_DROPBOX_APP_KEY`). That key only tells Dropbox which extension is asking to connect. It is not a password and it is not an access token. Anyone can see it in the built extension. What must stay private are the tokens Dropbox issues for your account.
-
-Google Drive uses a **Web application** OAuth client (`WXT_GOOGLE_CLIENT_ID` + `WXT_GOOGLE_CLIENT_SECRET`). Chrome Extension clients do not work with this flow. Add Authorized redirect URI `https://<extension-id>.chromiumapp.org/` using the id from `chrome://extensions`. Scopes are `drive` (list existing folders and save into them) and `userinfo.email`. The client secret is required by Google’s token endpoint and is baked into the build like other installed-app secrets — keep it in gitignored `.env`. Tokens stay in this browser.
-
-The maintainer registers the redirect URI `https://<extension-id>.chromiumapp.org/dropbox` once on that Dropbox app, and turns on **Allow public clients**. The Chrome Web Store extension id stays the same across updates. Do not add a new `manifest.key` after the extension is published, because that would change the id and the redirect would stop matching.
-
-### If you already connected
-
-Updating Web Saver does not sign you out, and it does not move an existing connection onto the shared app.
-
-- If Dropbox is already connected through an app you created, you stay signed in. Your default folder, save preferences, and recent saves stay. Settings says **Using your own Dropbox app.**
-- **Disconnect** removes the tokens and leaves your saved app key in place. The next **Connect Dropbox** uses that same app.
-- To switch to the shared app, open **Change your Dropbox app**, clear the saved key, and save. That signs you out. Then click **Connect Dropbox**. Files already in your Dropbox stay where they are. The old app remains under [Dropbox → Settings → Connected apps](https://www.dropbox.com/account/connected_apps) until you remove it there.
-- If you installed Web Saver but never saved an app key, the update gives you the 5 second connect above.
+If Dropbox is already connected through an app you created, you stay signed in; settings says **Using your own Dropbox app.** **Disconnect** keeps the saved key. To use the shared app, clear that key under **Change your Dropbox app**, then connect again. Files already in Dropbox stay put; revoke the old app at [Dropbox → Connected apps](https://www.dropbox.com/account/connected_apps) if you want it gone. A local build with `WXT_DROPBOX_APP_KEY` empty still uses a personal app. An unpacked copy from a new folder gets a new extension id, so register that redirect or use your own app.
 
 ## Privacy
 
-Sign-in tokens, preferences, and recent saves are stored only in the browser's extension storage. A personal Dropbox app key, if you add one, stays there too. There is no Web Saver server and no analytics, and nothing is sent to the developer except feedback you choose to send. Saving only contacts Dropbox and the website hosting the file you choose to save. The settings walkthrough loads from Loom while it is visible, and hiding it stops that player. The shared Dropbox app key only identifies the extension to Dropbox.
+Sign-in tokens, preferences, and recent saves live only in this browser's extension storage. A personal Dropbox app key, if you add one, stays there too. There is no extra server and no analytics. Saving talks to Dropbox or Google and to the site hosting the file. The settings walkthrough loads from Loom while it is visible; hiding it stops that. The shared Dropbox app key only identifies the extension to Dropbox.
 
-The full policy ships inside the extension as `privacy.html`, linked from the settings page, popup, and review window. [PRIVACY.md](PRIVACY.md) has the same text for public hosting, which the Chrome Web Store requires. Keep `PRIVACY.md` and `src/entrypoints/privacy/App.tsx` in sync when either changes.
+The full policy is `privacy.html` in the extension and [PRIVACY.md](PRIVACY.md) for the Chrome Web Store. Keep `PRIVACY.md` and `src/entrypoints/privacy/App.tsx` in sync.
 
 ## Feedback and bug reports
 
-Every piece of feedback ends up as an issue in [GitHub Issues](https://github.com/oyerohabib/dropbox-web-saver/issues), so it can be tracked until it's resolved.
+All feedback becomes a [GitHub issue](https://github.com/oyerohabib/dropbox-web-saver/issues) so it can be tracked.
 
-- **From the extension**: click **Send feedback** or **Report a bug** in the popup footer or settings page, or **Report this problem** next to an error in the review window. The feedback page lets you pick bug, feature idea, or other feedback, then:
-  - **Continue on GitHub** opens a prefilled issue using the matching template. You review it and submit it yourself. It needs a free GitHub account.
-  - **Email instead** opens a prefilled email to the maintainer, who copies it into an issue.
-  - An optional toggle adds the extension version, browser, and whether Dropbox is connected. It never includes app keys, tokens, pages, or files.
-- **On GitHub**: [open an issue](https://github.com/oyerohabib/dropbox-web-saver/issues/new/choose) and choose the **Bug report**, **Feature idea**, or **General feedback** form.
-- **On uninstall**: the browser opens the feedback form so people who leave can say why.
+- **In the extension:** **Send feedback** or **Report a bug** in the popup or settings, or **Report this problem** next to a review-window error. Pick bug, feature idea, or other feedback, then **Continue on GitHub** (prefilled issue; needs a GitHub account) or **Email instead**. An optional toggle adds version, browser, and whether Dropbox is connected; it never includes keys, tokens, pages, or files.
+- **On GitHub:** [open an issue](https://github.com/oyerohabib/dropbox-web-saver/issues/new/choose) and choose **Bug report**, **Feature idea**, or **General feedback**.
+- **On uninstall:** the browser opens the feedback form.
 
-The issue form field ids in `.github/ISSUE_TEMPLATE/` must match the parameters built in `src/lib/project.ts`, which has tests for this.
+Issue form field ids in `.github/ISSUE_TEMPLATE/` must match the parameters built in `src/lib/project.ts` (covered by tests).
 
 ## Build and install
 
@@ -105,75 +76,40 @@ npm install
 npm run build
 ```
 
-Then in Chrome:
-
-1. Open `chrome://extensions` and turn on **Developer mode**.
-2. Click **Load unpacked** and select `.output/chrome-mv3`.
-3. After each rebuild, click the reload icon on the extension card.
-
-`npm run dev` starts WXT's dev mode with automatic reloads. `npm run zip` produces a shareable zip in `.output/`.
-
-## Using it
-
-- **Right-click an image, video, or audio element** and choose **Save this image / video / audio to…**, then **Dropbox** or **Google Drive**.
-- **Right-click a link** that points to a file (any [supported file](#supported-files), or a link with a `download` attribute) and choose **Save the file this link opens to…**, then a destination. Links to ordinary web pages are rejected with an error toast.
-  - When an image is wrapped in a link, both items appear: the image item saves the picture you see, the link item saves whatever the link points to (often a larger original or a different file).
-- **Find files on a page**: right-click an empty spot and choose **Find files on this page…**, or open the toolbar popup and click **Scan this page**. In the review window, tick at least one destination (Dropbox and/or Google Drive) and a folder for each.
-  - Videos, audio, and linked files are listed first, then images from largest to smallest. Nothing is selected until you tick it.
-  - Small images such as avatars, icons, and logos are hidden. Turn on **Show small images** to see them.
-  - Tick files one by one, or use **Select all** and **Clear**. Then click **Save N files**. Keep the window open while it shows "Saving 3 of 7…".
-  - When it finishes you see how many files were saved. If any failed, they're listed with the reason, and **Retry failed** tries just those again.
-- **Change the default folder**: click **Change** next to the default folder in the popup or on the settings page. A window opens showing your current default:
-  - Open folders by clicking them, and go back with the breadcrumbs (for example **Dropbox › Photos › 2026**) or the **Up to …** row.
-  - Click **+ New folder** to create a folder inside the one you're viewing. Web Saver opens it straight away.
-  - Click **Set as default folder** to use the folder you're viewing. A confirmation shows the new default, with **Done**, **Choose another folder**, and **Open in Dropbox**.
-- **Pick a folder for a single save**: in the review window, click **Change** next to the folder. The same browser opens, and **Use this folder** applies your choice to that save only. **Cancel** keeps the original folder.
-- While a save runs, a toast in the bottom-right corner of the page shows progress, then the result. The toolbar badge shows `…`, then `OK` or `ERR`. Browser-internal pages can't show toasts, so only the badge appears there.
-- Closing a review window cancels that save.
-
-## Save preferences
-
-Preferences save automatically. Open them from any of these places:
-
-- The **How saving works** card in the toolbar popup, or the gear icon in its header
-- Right-click the toolbar icon, then **Save preferences**
-- The top of the settings page
-- **Change how saving works** at the bottom of every review window
-
-| Preference | Options |
-| --- | --- |
-| When I save | **Review first** shows the review window. **Save instantly** uploads straight to the remembered folder. New installs start on Review first for the first save, then switch to Save instantly once. They never switch again after you pick a mode yourself. |
-| Folder | **Use last folder** (default) or **Ask every time** |
-| Rename files | When on, the review window shows an editable filename |
-
-Your first save opens the review window so you can pick a folder. Once it succeeds, the window says that later saves go straight to that folder. Click **Keep reviewing each save** there to stay on Review first. The automatic switch only happens when the folder setting is **Use last folder** and renaming is off, because Save instantly would still open the window otherwise.
-
-Save instantly still opens the review window when a choice is needed: Dropbox isn't connected, no folder is remembered, the folder is set to ask every time, or renaming is on.
-
-## Filenames
-
-The extension uses the best name it can find, in this order: the link's `download` attribute, the file name in the URL, the server's `Content-Disposition` header, then the element's `alt`, `title`, or link text. When the URL has no extension (for example Unsplash image URLs), it asks the server for the content type and adds the matching extension. If a file with the same name already exists, Dropbox appends a number.
-
-## Development
+In Chrome, open `chrome://extensions`, turn on **Developer mode**, **Load unpacked**, and select `.output/chrome-mv3`. Reload the extension card after each rebuild.
 
 ```bash
 npx tsc --noEmit   # type check
 npm run test       # Vitest unit tests
-npm run build      # production build into .output/chrome-mv3
+npm run dev        # WXT dev mode with automatic reloads
+npm run zip        # shareable zip in .output/
 ```
 
-The toolbar icons are generated at build time from `src/assets/icon.svg` by `@wxt-dev/auto-icons`.
+Toolbar icons are generated at build time from `src/assets/icon.svg` by `@wxt-dev/auto-icons`. Chrome Web Store listing copy, screenshots, and capture scripts live in the local `store/` folder (gitignored).
 
-Chrome Web Store listing copy, screenshots, and capture scripts live in the local `store/` folder (gitignored; not published with the repo).
+## Save preferences
+
+Preferences save automatically. Open them from **How saving works** in the popup (or the gear), **Save preferences** on the toolbar icon, the top of settings, or **Change how saving works** in a review window.
+
+| Preference | Options |
+| --- | --- |
+| When I save | **Review first** shows the review window. **Save instantly** uploads to the remembered folder. New installs review the first save, then switch to instant; they never switch again after you pick a mode yourself. |
+| Folder | **Use last folder** (default) or **Ask every time** |
+| Rename files | When on, the review window shows an editable filename |
+
+Your first save opens the review window so you can pick a folder. After it succeeds, later saves go straight there unless you click **Keep reviewing each save**. The automatic switch only happens when the folder setting is **Use last folder** and renaming is off. Save instantly still opens the window if Dropbox or Drive is not connected, no folder is remembered, the folder is set to ask every time, or renaming is on.
+
+## Filenames
+
+The best name is chosen in this order: the link's `download` attribute, the file name in the URL, the server's `Content-Disposition` header, then the element's `alt`, `title`, or link text. When the URL has no extension, the server content type supplies one. If a file with the same name already exists, Dropbox appends a number.
 
 ## Known limitations
 
-- Chromium browsers only.
-- Can't run on browser-internal pages such as `chrome://` pages and the Chrome Web Store.
+- Chromium browsers only. Cannot run on `chrome://` pages or the Chrome Web Store.
 - Assets fetched through the page's login session are limited to about 40 MB when transferred from the page. Larger files fall back to a direct fetch from the extension.
-- Some files (for example images served from a separate CDN) can only be saved after you allow their site in the save window. Access you grant can be removed from the extension's details page in Chrome.
-- Streamed video (HLS/DASH, `blob:` sources from players such as YouTube) and CSS background images aren't detected.
-- Sign-in tokens are stored locally in the browser profile. There is no backend. A personal Dropbox app key, if you add one, stays there too.
+- Some files (for example images on a separate CDN) can only be saved after you allow their site in the save window. Remove that access from the extension's details page in Chrome.
+- Streamed video (HLS/DASH, `blob:` sources from players such as YouTube) and CSS background images are not detected.
+- Sign-in tokens are stored locally in the browser profile. There is no backend.
 
 ## Contributing
 
@@ -184,24 +120,6 @@ Good first steps: browse [open issues](https://github.com/oyerohabib/dropbox-web
 ## Security
 
 Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md), not in public issues.
-
-## Former Dropbox setup
-
-This is the previous way to connect, from before the shared Dropbox app. It takes about 3 minutes. Open settings and choose **Use your own Dropbox app (much longer)**. A saved personal app key is used instead of the shared one. The guide on that screen is:
-
-1. **Create your Dropbox app** at [dropbox.com/developers/apps/create](https://www.dropbox.com/developers/apps/create): choose **Scoped access**, **Full Dropbox**, and any unique name.
-2. **Turn on permissions**: on the app's **Permissions** tab, tick these four scopes and click **Submit**:
-   - `account_info.read`
-   - `files.metadata.read`
-   - `files.metadata.write`
-   - `files.content.write`
-3. **Add the redirect URI**: copy it from the guide (it looks like `https://<extension-id>.chromiumapp.org/dropbox`) and add it under **OAuth 2 → Redirect URIs** on the app's **Settings** tab. Turn on **Allow public clients**.
-4. **Paste your App key** from the app's **Settings** tab into the guide. Never paste the App secret.
-5. **Connect Dropbox** and click **Allow** in the Dropbox window.
-
-If connecting with your own app fails, the guide points to the step that most likely needs fixing (for example, a redirect URI mismatch points back to step 3).
-
-A source checkout with `WXT_DROPBOX_APP_KEY` left empty uses this path. Copy `.env.example` to `.env` and set the public app key when you want the 5 second connect in a local build. An unpacked extension loaded from a new folder gets a new extension id, so that redirect has to be registered on the Dropbox app too, or use this former setup.
 
 ## License
 
