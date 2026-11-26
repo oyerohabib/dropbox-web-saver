@@ -5,6 +5,8 @@
   const art = (file) => `http://images.wanderlust.example/photos/${file}`;
   const pageUrl = "https://wanderlust.example/iceland-photo-diary";
   const now = Date.now();
+  const dropboxRedirect = "https://abcdefghijklmnop.chromiumapp.org/dropbox";
+  const driveRedirect = "https://abcdefghijklmnop.chromiumapp.org/";
 
   const photo = (file, width, height) => ({
     sourceUrl: art(file),
@@ -46,25 +48,43 @@
   const settings = {
     appKey: null,
     lastUsedFolderPath: "/Photos/Iceland 2026",
+    lastUsedFolders: {
+      dropbox: "/Photos/Iceland 2026",
+      google_drive: "id:drive:iceland-2026",
+    },
+    lastUsedFolderLabels: {
+      dropbox: "/Photos/Iceland 2026",
+      google_drive: "Iceland 2026",
+    },
+    lastUsedProvider: "dropbox",
     savePreferences: {
       saveMode: scene === "single" ? "reviewed" : "one_click",
       promptForRename: scene === "single",
       folderBehavior: "remember_last",
     },
     saveModeSetByUser: true,
+    walkthroughHidden: true,
   };
 
-  const redirectUri = "https://abcdefghijklmnop.chromiumapp.org/dropbox";
-  const authState =
-    scene === "setup"
-      ? { status: "signed_out", appKey: null, appKeySource: "builtin", redirectUri }
-      : {
-          status: "signed_in",
-          appKey: null,
-          appKeySource: "builtin",
-          accountEmail: "alex@example.com",
-          redirectUri,
-        };
+  const signedOut = scene === "setup";
+  const dropboxAuth = signedOut
+    ? { status: "signed_out", appKey: null, appKeySource: "builtin", redirectUri: dropboxRedirect }
+    : {
+        status: "signed_in",
+        appKey: null,
+        appKeySource: "builtin",
+        accountEmail: "alex@example.com",
+        redirectUri: dropboxRedirect,
+      };
+  const googleDriveAuth = signedOut
+    ? { status: "signed_out", clientId: "mock-google-client-id", redirectUri: driveRedirect }
+    : {
+        status: "signed_in",
+        clientId: "mock-google-client-id",
+        accountEmail: "alex.j@gmail.com",
+        redirectUri: driveRedirect,
+      };
+  const combinedAuth = { dropbox: dropboxAuth, googleDrive: googleDriveAuth };
 
   const folders = {
     "/": ["Camera Uploads", "Documents", "Photos", "Web Saves"],
@@ -82,33 +102,95 @@
     }));
   }
 
+  const driveFolders = {
+    root: [
+      ["id:drive:photos", "Photos"],
+      ["id:drive:documents", "Documents"],
+      ["id:drive:web-saves", "Web Saves"],
+    ],
+    "id:drive:photos": [
+      ["id:drive:iceland-2026", "Iceland 2026"],
+      ["id:drive:lisbon-2025", "Lisbon 2025"],
+      ["id:drive:wallpapers", "Wallpapers"],
+    ],
+    "id:drive:iceland-2026": [
+      ["id:drive:day-1", "Day 1 - Reykjavik"],
+      ["id:drive:day-2", "Day 2 - Glacier lagoon"],
+      ["id:drive:day-3", "Day 3 - South coast"],
+    ],
+  };
+  const driveFolderNames = {
+    root: "My Drive (top level)",
+    "id:drive:photos": "Photos",
+    "id:drive:documents": "Documents",
+    "id:drive:web-saves": "Web Saves",
+    "id:drive:iceland-2026": "Iceland 2026",
+    "id:drive:lisbon-2025": "Lisbon 2025",
+    "id:drive:wallpapers": "Wallpapers",
+    "id:drive:day-1": "Day 1 - Reykjavik",
+    "id:drive:day-2": "Day 2 - Glacier lagoon",
+    "id:drive:day-3": "Day 3 - South coast",
+  };
+
+  function listDriveFolders(path) {
+    const key = path || "root";
+    return (driveFolders[key] || []).map(([id, name]) => ({
+      id,
+      name,
+      pathLower: name.toLowerCase(),
+      pathDisplay: name,
+      parentKey: key,
+    }));
+  }
+
   const minutesAgo = (minutes) => now - minutes * 60_000;
   const recentSaves = [
-    ["glacier-lagoon.jpg", "wanderlust.example", "/Photos/Iceland 2026", 2],
-    ["iceland-itinerary.pdf", "wanderlust.example", "/Photos/Iceland 2026", 3],
-    ["quarterly-report.pdf", "investors.example.com", "/Documents", 95],
-    ["mountain-wallpaper.png", "unsplash.com", "/Photos/Wallpapers", 1440],
-  ].map(([filename, sourceDomain, destinationPath, minutes], index) => ({
-    id: String(index),
-    filename,
-    sourceDomain,
-    destinationPath,
-    success: true,
-    timestamp: minutesAgo(minutes),
-    method: "url_import",
-    message: `Saved ${filename}.`,
-  }));
+    ["glacier-lagoon.jpg", "wanderlust.example", "/Photos/Iceland 2026", "/Photos/Iceland 2026", "dropbox", 2],
+    ["iceland-itinerary.pdf", "wanderlust.example", "id:drive:iceland-2026", "Iceland 2026", "google_drive", 3],
+    ["quarterly-report.pdf", "investors.example.com", "/Documents", "/Documents", "dropbox", 95],
+    ["mountain-wallpaper.png", "unsplash.com", "id:drive:wallpapers", "Wallpapers", "google_drive", 1440],
+  ]
+    .slice(0, scene === "popup" ? 2 : 4)
+    .map(([filename, sourceDomain, destinationPath, destinationLabel, provider, minutes], index) => ({
+      id: String(index),
+      filename,
+      sourceDomain,
+      destinationPath,
+      destinationLabel,
+      provider,
+      success: true,
+      timestamp: minutesAgo(minutes),
+      method: "url_import",
+      message: `Saved ${filename}.`,
+    }));
 
   const singleCandidate = photo("glacier-lagoon.jpg", 2400, 1500);
   singleCandidate.triggerKind = "image";
 
   const pendingSave =
     scene === "scan"
-      ? { mode: "scan", assets: scanAssets, tabId: 1, destinationPath: null, createdAt: now, reason: "scan" }
+      ? {
+          mode: "scan",
+          assets: scanAssets,
+          tabId: 1,
+          destinationPath: "/Photos/Iceland 2026",
+          destinations: {
+            dropbox: "/Photos/Iceland 2026",
+            google_drive: "id:drive:iceland-2026",
+          },
+          selectedProviders: ["dropbox", "google_drive"],
+          createdAt: now,
+          reason: "scan",
+        }
       : scene === "single"
         ? {
             mode: "single",
-            request: { candidate: singleCandidate, destinationPath: "/Photos/Iceland 2026", forceFolderPicker: true },
+            request: {
+              candidate: singleCandidate,
+              provider: "dropbox",
+              destinationPath: "/Photos/Iceland 2026",
+              forceFolderPicker: true,
+            },
             resolvedFilename: "glacier-lagoon.jpg",
             createdAt: now,
             reason: "context_review",
@@ -116,9 +198,10 @@
         : null;
 
   const responses = {
-    GET_AUTH_STATE: authState,
+    GET_AUTH_STATE: dropboxAuth,
+    GET_GOOGLE_AUTH_STATE: googleDriveAuth,
+    GET_COMBINED_AUTH_STATE: combinedAuth,
     GET_SETTINGS: settings,
-    SAVE_SETTINGS: settings,
     GET_PENDING_SAVE: pendingSave,
     GET_RECENT_SAVES: recentSaves,
   };
@@ -135,7 +218,30 @@
       getManifest: () => ({ version: "0.4.0" }),
       onMessage: noopEvent,
       sendMessage: async (message) => {
-        if (message.type === "LIST_FOLDERS") return listFolders(message.path);
+        if (message.type === "LIST_FOLDERS") {
+          return message.provider === "google_drive" ? listDriveFolders(message.path) : listFolders(message.path);
+        }
+        if (message.type === "RESOLVE_FOLDER_LABEL") {
+          if (message.provider === "google_drive") {
+            return driveFolderNames[message.path] ?? "My Drive (top level)";
+          }
+          return message.path || "Dropbox (top level)";
+        }
+        if (message.type === "SAVE_SETTINGS") {
+          if (message.settings.savePreferences) {
+            settings.savePreferences = { ...settings.savePreferences, ...message.settings.savePreferences };
+          }
+          Object.assign(settings, message.settings, { savePreferences: settings.savePreferences });
+          return settings;
+        }
+        if (message.type === "SET_LAST_USED_FOLDER") {
+          const provider = message.provider ?? "dropbox";
+          settings.lastUsedFolders[provider] = message.path;
+          if (message.label) settings.lastUsedFolderLabels[provider] = message.label;
+          settings.lastUsedProvider = provider;
+          if (provider === "dropbox") settings.lastUsedFolderPath = message.path;
+          return settings;
+        }
         return responses[message.type] ?? null;
       },
     },

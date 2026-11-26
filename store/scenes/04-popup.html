@@ -3,12 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="scene.css" />
+    <script src="scene.js"></script>
   </head>
   <body class="scene">
     <div class="copy" style="max-width: 520px">
-      <div class="brand"><img alt="" src="/icons/128.png" />Web Saver for Dropbox</div>
+      <div class="brand"><img alt="" src="/icons/128.png" />Web Files to Cloud</div>
       <h1>Everything one click away.</h1>
-      <p>Scan the current page, switch between reviewing and instant saving, and see what you saved recently.</p>
+      <p>Scan the current page, connect Dropbox or Google Drive, and see what you saved recently.</p>
       <ul class="checks">
         <li>Save instantly or review each save</li>
         <li>Recent saves with links to their folders</li>
@@ -16,9 +17,15 @@
       </ul>
     </div>
 
-    <div class="window" style="width: 400px; height: 740px">
-      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span>Web Saver for Dropbox</div>
-      <iframe src="/popup.html?scene=popup"></iframe>
+    <div class="window" style="width: 400px; height: 662px">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span>Web Files to Cloud</div>
+      <iframe id="frame" src="/popup.html?scene=popup"></iframe>
     </div>
+
+    <script>
+      sceneFrame(document.getElementById("frame"), {
+        css: ".page-footer, .app-shell.popup > section.panel:nth-of-type(3) { display: none !important; }",
+      });
+    </script>
   </body>
 </html>

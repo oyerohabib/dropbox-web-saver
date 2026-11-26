@@ -41,7 +41,7 @@ shoot() {
     --user-data-dir="$PROFILE" \
     --host-resolver-rules="MAP *.wanderlust.example 127.0.0.1:$PORT" \
     --window-size="$width,$height" \
-    --virtual-time-budget=6000 \
+    --virtual-time-budget=10000 \
     --screenshot="$OUT/$name.png" \
     "http://localhost:$PORT/scenes/$name.html" >/dev/null 2>&1 &
   local chrome_pid=$!

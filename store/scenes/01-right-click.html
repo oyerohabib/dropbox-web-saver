@@ -4,8 +4,15 @@
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="scene.css" />
     <style>
+      body.scene {
+        gap: 32px;
+        padding: 0 48px;
+      }
+      .copy {
+        max-width: 360px;
+      }
       .browser {
-        width: 720px;
+        width: 760px;
         height: 680px;
         background: #fff;
       }
@@ -35,7 +42,7 @@
         position: relative;
         flex: 1;
         padding: 26px 40px;
-        overflow: hidden;
+        overflow: visible;
         font-family: Georgia, "Times New Roman", serif;
       }
       .page .kicker {
@@ -83,9 +90,9 @@
       }
       .menu {
         position: absolute;
-        top: 190px;
-        left: 330px;
-        width: 290px;
+        top: 188px;
+        left: 188px;
+        width: 268px;
         padding: 6px 0;
         border: 1px solid #d5dce6;
         border-radius: 8px;
@@ -94,7 +101,7 @@
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         font-size: 13px;
       }
-      .menu div {
+      .menu .item {
         display: flex;
         align-items: center;
         gap: 10px;
@@ -106,23 +113,63 @@
         border: 0;
         border-top: 1px solid #e3e8ef;
       }
-      .menu .active {
+      .menu .parent {
+        position: relative;
         background: #0061fe;
         color: #fff;
       }
-      .menu .active img {
+      .menu .parent img {
         width: 16px;
         height: 16px;
         border-radius: 4px;
         box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6);
       }
+      .menu .chevron {
+        margin-left: auto;
+        font-size: 9px;
+        opacity: 0.9;
+      }
       .menu .spacer {
         width: 16px;
       }
+      .submenu {
+        position: absolute;
+        top: -6px;
+        left: calc(100% - 4px);
+        width: 188px;
+        padding: 6px 0;
+        border: 1px solid #d5dce6;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 12px 32px rgba(16, 24, 40, 0.22);
+        color: #1e1919;
+      }
+      .submenu .item {
+        gap: 10px;
+      }
+      .submenu .item.active {
+        background: #0061fe;
+        color: #fff;
+      }
+      .submenu .mark {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 16px;
+        height: 16px;
+      }
+      .submenu .mark svg {
+        display: block;
+        width: 16px;
+        height: 16px;
+      }
+      .submenu .item.active .mark {
+        color: #fff;
+      }
       .cursor {
         position: absolute;
-        top: 178px;
-        left: 318px;
+        top: 176px;
+        left: 176px;
         width: 18px;
       }
       .toast {
@@ -178,12 +225,12 @@
   </head>
   <body class="scene">
     <div class="copy">
-      <div class="brand"><img alt="" src="/icons/128.png" />Web Saver for Dropbox</div>
-      <h1>Right-click. Saved to Dropbox.</h1>
-      <p>Send any image, video, audio file or download link straight into your Dropbox. No downloading, no re-uploading.</p>
+      <div class="brand"><img alt="" src="/icons/128.png" />Web Files to Cloud</div>
+      <h1>Right-click. Saved to Dropbox or Drive.</h1>
+      <p>Send any image, video, audio file or download link straight into Dropbox or Google Drive. No downloading, no re-uploading.</p>
       <ul class="checks">
         <li>Works on images, videos, audio and file links</li>
-        <li>Goes to the folder you choose</li>
+        <li>Choose Dropbox or Google Drive</li>
         <li>A notice confirms every save</li>
       </ul>
     </div>
@@ -203,14 +250,38 @@
 
         <svg class="cursor" viewBox="0 0 24 24"><path d="M3 2 L3 20 L8 15 L11 22 L14 21 L11 14 L18 14 Z" fill="#111" stroke="#fff" stroke-width="1.5"/></svg>
         <div class="menu">
-          <div><span class="spacer"></span>Open image in new tab</div>
-          <div><span class="spacer"></span>Save image as…</div>
-          <div><span class="spacer"></span>Copy image</div>
-          <div><span class="spacer"></span>Copy image address</div>
+          <div class="item"><span class="spacer"></span>Open image in new tab</div>
+          <div class="item"><span class="spacer"></span>Save image as…</div>
+          <div class="item"><span class="spacer"></span>Copy image</div>
+          <div class="item"><span class="spacer"></span>Copy image address</div>
           <hr />
-          <div class="active"><img alt="" src="/icons/32.png" />Save this image to Dropbox</div>
+          <div class="item parent">
+            <img alt="" src="/icons/32.png" />Save this image to…
+            <span class="chevron">▶</span>
+            <div class="submenu">
+              <div class="item active">
+                <span class="mark" style="color:#fff">
+                  <svg fill="currentColor" viewBox="0 0 24 24"><path d="M6 2.5 0 6.25 6 10 12 6.25 6 2.5Zm12 0L12 6.25 18 10l6-3.75L18 2.5ZM0 13.75 6 17.5 12 13.75 6 10 0 13.75Zm18-3.75-6 3.75 6 3.75 6-3.75L18 10ZM6 18.75l6 3.75 6-3.75-6-3.75-6 3.75Z"/></svg>
+                </span>
+                Dropbox
+              </div>
+              <div class="item">
+                <span class="mark">
+                  <svg viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+                    <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                    <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+                    <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+                    <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                    <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                    <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                  </svg>
+                </span>
+                Google Drive
+              </div>
+            </div>
+          </div>
           <hr />
-          <div><span class="spacer"></span>Inspect</div>
+          <div class="item"><span class="spacer"></span>Inspect</div>
         </div>
 
         <div class="toast">

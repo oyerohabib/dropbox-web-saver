@@ -1,6 +1,6 @@
 # Publishing to the Chrome Web Store
 
-Everything needed to publish Web Saver for Dropbox: the upload package, images, the text for every field in the developer dashboard, and the steps in order.
+Everything needed to publish Web Files to Cloud: the upload package, images, the text for every field in the developer dashboard, and the steps in order.
 
 ## What's in this folder
 
@@ -49,22 +49,23 @@ Before uploading, unzip it to a new folder, load that folder with **Load unpacke
 **Description** (paste as is; the store shows plain text and keeps line breaks):
 
 ```text
-Save images, videos, audio and files from any web page straight into your Dropbox, without downloading them to your computer first.
+Save images, videos, audio and files from any web page straight into your Dropbox or Google Drive, without downloading them to your computer first.
 
 RIGHT-CLICK TO SAVE
-• Right-click an image, video or audio player and choose "Save this … to Dropbox".
-• Right-click a link to a PDF, document, archive or other file and choose "Save the file this link opens to Dropbox".
-• A small notice on the page confirms each save, with an "Open in Dropbox" link.
+• Right-click an image, video or audio player and choose "Save this … to…", then Dropbox or Google Drive.
+• Right-click a link to a PDF, document, archive or other file and choose "Save the file this link opens to…", then Dropbox or Google Drive.
+• A small notice on the page confirms each save, with an "Open in Dropbox" or "Open in Google Drive" link.
 
 SAVE A WHOLE PAGE OF FILES
 • Choose "Find files on this page" from the right-click menu or the toolbar popup.
 • See every photo, video, audio file and download on the page with thumbnails, sizes and file types.
 • Tiny icons and avatars are hidden for you. Tick the files you want, or Select all, then save them in one go.
+• Save to Dropbox, Google Drive, or both at once, each with its own folder.
 • A summary shows what was saved, and "Retry failed" re-tries anything that didn't make it.
 
 YOUR FOLDERS, YOUR WAY
-• Browse your Dropbox folders, create a new folder on the spot, and set a default.
-• Your first save opens a short review so you can pick the folder. After that, saves go straight there. Prefer to review every time? One click keeps the review window.
+• Browse your Dropbox or Google Drive folders, create a new folder on the spot, and set a default for each cloud.
+• Your first save to a cloud opens a short review so you can pick the folder. After that, saves go straight there. Prefer to review every time? One click keeps the review window.
 • Optionally rename files before saving.
 • Recent saves are listed in the popup with links to their folders.
 
@@ -72,16 +73,16 @@ SUPPORTED FILES
 Web Saver works with the common types of images, videos, audio, documents, archives and design files. Any image, video or audio you right-click is saved whatever its format. The full list is on the extension's settings page.
 
 PRIVATE BY DESIGN
-• Connect Dropbox in about 5 seconds. Sign in if asked, then click Allow.
-• Sign-in tokens stay in your browser. There is no Web Saver server, no analytics and no tracking.
+• Connect Dropbox in about 5 seconds. Sign in if asked, then click Allow. Connect Google Drive the same way.
 • Prefer your own Dropbox app? An optional guide takes about 3 minutes. That app key stays in your browser too.
-• Files go from the website or Dropbox straight into your Dropbox. The developer never sees them.
-• Web Saver asks Dropbox for permission to add files, not to read the files already in your Dropbox.
+• Sign-in tokens stay in your browser. There is no Web Saver server, no analytics and no tracking.
+• Files go from the website straight into your Dropbox or Google Drive. The developer never sees them.
+• For Dropbox, Web Saver asks permission to add files, not to read the files already in your Dropbox. For Google Drive, it lists your folders so you can save into them; it does not download files already in Drive.
 
 OPEN SOURCE
 Web Saver is free and open source under the MIT license. Code, feature ideas and bug reports: https://github.com/oyerohabib/dropbox-web-saver
 
-Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc.
+Web Files to Cloud is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or Google.
 ```
 
 **Other fields:**
@@ -102,8 +103,8 @@ Web Saver for Dropbox is an independent project and is not affiliated with or en
 
 The listing's title and summary come from the manifest, so they aren't edited here:
 
-- Title: `Web Saver for Dropbox`
-- Summary: `Save images, videos, audio and files from any page to Dropbox or Google Drive. Not affiliated with Dropbox, Inc. or Google.`
+- Title: `Web Files to Cloud: Save to Drive & Dropbox`
+- Summary: `Save images, videos, audio and files from any page to Google Drive or Dropbox. Not affiliated with Google or Dropbox, Inc.`
 
 ## 5. Privacy tab
 
