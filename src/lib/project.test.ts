@@ -7,6 +7,9 @@ import {
   type FeedbackInput,
   isFeedbackKind,
   MAX_ISSUE_DESCRIPTION_LENGTH,
+  PRODUCT_SHORT_NAME,
+  PRODUCT_STORE_NAME,
+  PRODUCT_SUMMARY,
   truncateDescription,
   UNINSTALL_FEEDBACK_URL,
 } from "./project";
@@ -76,7 +79,7 @@ describe("buildFeedbackEmail", () => {
     expect(mailto).not.toContain("+");
 
     const search = new URLSearchParams(mailto.split("?")[1]);
-    expect(search.get("subject")).toBe("[Web Saver] Bug report: Save failed");
+    expect(search.get("subject")).toBe("[Web Files] Bug report: Save failed");
     expect(search.get("body")).toContain(baseInput.description);
     expect(search.get("body")).toContain("Extension version: 0.1.0");
   });
@@ -129,5 +132,13 @@ describe("UNINSTALL_FEEDBACK_URL", () => {
     const search = params(UNINSTALL_FEEDBACK_URL);
     expect(search.get("template")).toBe("feedback.yml");
     expect(search.get("title")).toBe("[Feedback]: Uninstall feedback");
+  });
+});
+
+describe("product listing copy", () => {
+  it("fits Chrome Web Store name, short name, and summary limits", () => {
+    expect(PRODUCT_STORE_NAME.length).toBeLessThanOrEqual(45);
+    expect(PRODUCT_SHORT_NAME.length).toBeLessThanOrEqual(12);
+    expect(PRODUCT_SUMMARY.length).toBeLessThanOrEqual(132);
   });
 });

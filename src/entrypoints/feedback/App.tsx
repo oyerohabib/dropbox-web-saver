@@ -10,6 +10,7 @@ import {
   isFeedbackKind,
   ISSUES_URL,
   MAX_EMAIL_DESCRIPTION_LENGTH,
+  PRODUCT_NAME,
   type FeedbackKind,
 } from "../../lib/project";
 import type { DropboxAuthState } from "../../lib/types";
@@ -81,7 +82,7 @@ export function FeedbackApp() {
         <div className="row" style={{ gap: 12 }}>
           <img alt="" src="/icons/48.png" style={{ width: 40, height: 40, borderRadius: 10 }} />
           <div>
-            <div className="eyebrow">Web Saver for Dropbox</div>
+            <div className="eyebrow">{PRODUCT_NAME}</div>
             <h1>Send feedback</h1>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { PreferencesForm } from "../../components/PreferencesForm";
 import { RecentSaves } from "../../components/RecentSaves";
 import { Button, StatusMessage } from "../../components/ui";
 import { openFeedbackTab, openPreferencesTab, openSettingsTab, sendBackgroundMessage } from "../../lib/browser";
+import { PRODUCT_NAME } from "../../lib/project";
 import type {
   CombinedAuthState,
   DropboxAuthState,
@@ -118,7 +119,7 @@ export function PopupApp() {
       <header className="app-header">
         <div className="brand">
           <img alt="" src="/icons/48.png" />
-          <span className="truncate">Web Saver for Dropbox</span>
+          <span className="truncate">{PRODUCT_NAME}</span>
         </div>
         <div className="row">
           {combinedAuth ? (

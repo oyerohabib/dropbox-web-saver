@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CONTACT_EMAIL, ISSUES_URL } from "../../lib/project";
+import { CONTACT_EMAIL, ISSUES_URL, PRODUCT_NAME } from "../../lib/project";
 
 const LAST_UPDATED = "November 26, 2026";
 
@@ -19,7 +19,7 @@ export function PrivacyApp() {
         <div className="row" style={{ gap: 12 }}>
           <img alt="" src="/icons/48.png" style={{ width: 40, height: 40, borderRadius: 10 }} />
           <div>
-            <div className="eyebrow">Web Saver for Dropbox</div>
+            <div className="eyebrow">{PRODUCT_NAME}</div>
             <h1>Privacy policy</h1>
           </div>
         </div>
@@ -249,7 +249,7 @@ export function PrivacyApp() {
           <a href={ISSUES_URL} rel="noopener noreferrer" target="_blank">open an issue on GitHub</a>.
         </p>
         <p className="muted">
-          Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or
+          {PRODUCT_NAME} is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or
           Google.
         </p>
       </Section>

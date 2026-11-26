@@ -7,7 +7,7 @@ import { SetupWizard } from "../../components/SetupWizard";
 import { WalkthroughCard } from "../../components/WalkthroughCard";
 import { Button, Skeleton, StatusMessage, type StatusTone } from "../../components/ui";
 import { sendBackgroundMessage } from "../../lib/browser";
-import { REPO_URL } from "../../lib/project";
+import { PRODUCT_NAME, REPO_URL } from "../../lib/project";
 import { SUPPORTED_FILE_TYPES } from "../../lib/utils/file-types";
 import type {
   CombinedAuthState,
@@ -219,7 +219,7 @@ export function OptionsApp() {
         <div className="row" style={{ gap: 12 }}>
           <img alt="" src="/icons/48.png" style={{ width: 40, height: 40, borderRadius: 10 }} />
           <div>
-            <div className="eyebrow">Web Saver for Dropbox</div>
+            <div className="eyebrow">{PRODUCT_NAME}</div>
             <h1>Settings</h1>
           </div>
         </div>
@@ -301,7 +301,7 @@ export function OptionsApp() {
       </div>
 
       <footer className="muted page-footer">
-        Web Saver for Dropbox is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or Google.
+        {PRODUCT_NAME} is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or Google.
         {" · "}
         <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
         <div className="actions-wrap footer-links">

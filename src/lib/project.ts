@@ -3,6 +3,16 @@ export const ISSUES_URL = `${REPO_URL}/issues`;
 export const NEW_ISSUE_URL = `${ISSUES_URL}/new/choose`;
 export const CONTACT_EMAIL = "oyerohabib@yahoo.com";
 
+/** Shown in the toolbar, headers, and window titles. */
+export const PRODUCT_NAME = "Web Files to Cloud";
+/** Chrome Web Store / manifest `name`. Keep at or under 45 characters so store cards do not truncate. */
+export const PRODUCT_STORE_NAME = "Web Files to Cloud: Save to Drive & Dropbox";
+/** Manifest `short_name`. Chrome caps this at 12 characters. */
+export const PRODUCT_SHORT_NAME = "Web Files";
+/** Manifest `description`. Chrome Web Store summary cap is 132 characters. */
+export const PRODUCT_SUMMARY =
+  "Save images, videos, audio and files from any page to Google Drive or Dropbox. Not affiliated with Google or Dropbox, Inc.";
+
 export type FeedbackKind = "bug" | "feature" | "feedback";
 
 export interface FeedbackDiagnostics {
@@ -111,7 +121,7 @@ export function buildIssueUrl(input: FeedbackInput) {
 export function buildFeedbackEmail(input: FeedbackInput) {
   const config = FEEDBACK_KINDS[input.kind];
   const title = input.title.trim();
-  const subject = `[Web Saver] ${config.label}${title ? `: ${title}` : ""}`;
+  const subject = `[${PRODUCT_SHORT_NAME}] ${config.label}${title ? `: ${title}` : ""}`;
 
   const lines = [truncateDescription(input.description, MAX_EMAIL_DESCRIPTION_LENGTH) || "(Write your message here)"];
   if (sharesDiagnostics(input)) {
