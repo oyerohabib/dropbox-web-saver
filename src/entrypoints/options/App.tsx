@@ -186,6 +186,8 @@ export function OptionsApp() {
       <div className="muted connect-privacy">
         Tokens stay in this browser.{" "}
         <a href="/privacy.html" rel="noopener" target="_blank">Privacy</a>
+        {" · "}
+        <a href="/terms.html" rel="noopener" target="_blank">Terms</a>
       </div>
     </section>
   ) : null;
@@ -304,6 +306,8 @@ export function OptionsApp() {
         {PRODUCT_NAME} is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or Google.
         {" · "}
         <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
+        {" · "}
+        <a href="/terms.html" rel="noopener" target="_blank">Terms of service</a>
         <div className="actions-wrap footer-links">
           <a href="/feedback.html" rel="noopener" target="_blank">Send feedback</a>
           <a href="/feedback.html?kind=bug" rel="noopener" target="_blank">Report a bug</a>

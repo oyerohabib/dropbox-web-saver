@@ -40,7 +40,7 @@ CI runs the type check, tests, and build on every pull request, so run them loca
 
 ## Project structure
 
-- `src/entrypoints/`: one folder or file per extension surface: `background.ts`, `content.ts`, and the `popup`, `options` (settings), `save` (review window), `privacy`, and `feedback` pages.
+- `src/entrypoints/`: one folder or file per extension surface: `background.ts`, `content.ts`, and the `popup`, `options` (settings), `save` (review window), `privacy`, `terms`, and `feedback` pages.
 - `src/lib/`: framework-free logic such as Dropbox auth and API calls, storage, the save orchestrator, and helpers in `utils/`. Unit tests live next to the code as `*.test.ts`.
 - `src/components/`: shared React components, including the small design-system primitives in `ui.tsx`.
 - `src/assets/`: global styles and the source icon (`icon.svg`), which is turned into toolbar icons at build time.
@@ -51,6 +51,7 @@ CI runs the type check, tests, and build on every pull request, so run them loca
 - Add or update tests for logic in `src/lib`.
 - Match the surrounding code style. Reuse the components in `src/components/ui.tsx` and the CSS tokens in `src/assets/style.css` rather than adding new one-off styles.
 - If you change what data the extension stores or sends, update both `PRIVACY.md` and `src/entrypoints/privacy/App.tsx` so they stay in sync.
+- If you change the terms of service, update both `TERMS.md` and `src/entrypoints/terms/App.tsx` so they stay in sync.
 - If you add a permission or host permission, explain why in the pull request and in the privacy policy.
 - Never commit a Dropbox app secret or access token. The public app key belongs in gitignored `.env` until you choose to ship it with a store build.
 
@@ -60,6 +61,7 @@ CI runs the type check, tests, and build on every pull request, so run them loca
 - [ ] Tested by loading the unpacked build in a Chromium browser
 - [ ] Screenshots included for visible UI changes
 - [ ] Privacy policy and README updated if behaviour or data handling changed
+- [ ] Terms of service (`TERMS.md` and `src/entrypoints/terms/App.tsx`) updated if what users agree to changed
 
 ## License
 

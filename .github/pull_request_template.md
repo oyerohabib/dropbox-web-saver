@@ -18,5 +18,6 @@
 ## Checklist
 
 - [ ] Privacy policy (`PRIVACY.md` and `src/entrypoints/privacy/App.tsx`) updated if data handling or permissions changed
+- [ ] Terms of service (`TERMS.md` and `src/entrypoints/terms/App.tsx`) updated if what users agree to changed
 - [ ] README updated if behaviour changed
 - [ ] No Dropbox app secrets or access tokens committed

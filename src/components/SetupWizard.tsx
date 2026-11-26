@@ -34,6 +34,8 @@ export function PrivacyBanner() {
           own app, that app key stays here too. The developer never sees your tokens or files.
         </span>
         <a href="/privacy.html" rel="noopener" target="_blank">Read the privacy policy</a>
+        {" · "}
+        <a href="/terms.html" rel="noopener" target="_blank">Terms of service</a>
       </div>
     </div>
   );

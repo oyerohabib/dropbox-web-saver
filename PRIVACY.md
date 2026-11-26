@@ -80,6 +80,6 @@ Web Saver requests `drive` so it can list folders already in your Drive and save
 
 ## Changes and contact
 
-If this policy changes, the "Last updated" date above will change too. Questions: email oyerohabib@yahoo.com or [open an issue on GitHub](https://github.com/oyerohabib/dropbox-web-saver/issues).
+If this policy changes, the "Last updated" date above will change too. It applies together with the [terms of service](TERMS.md). Questions: email oyerohabib@yahoo.com or [open an issue on GitHub](https://github.com/oyerohabib/dropbox-web-saver/issues).
 
 Web Files to Cloud is an independent project and is not affiliated with or endorsed by Dropbox, Inc. or Google.

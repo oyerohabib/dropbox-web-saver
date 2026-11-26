@@ -245,7 +245,8 @@ export function PrivacyApp() {
 
       <Section title="Changes and contact">
         <p>
-          If this policy changes, the &quot;Last updated&quot; date above will change too. Questions: email {CONTACT_EMAIL} or{" "}
+          If this policy changes, the &quot;Last updated&quot; date above will change too. It applies together with the{" "}
+          <a href="/terms.html">terms of service</a>. Questions: email {CONTACT_EMAIL} or{" "}
           <a href={ISSUES_URL} rel="noopener noreferrer" target="_blank">open an issue on GitHub</a>.
         </p>
         <p className="muted">

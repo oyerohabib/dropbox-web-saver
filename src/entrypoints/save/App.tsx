@@ -1006,6 +1006,8 @@ export function SaveApp() {
         <span className="muted">{" · "}</span>
         <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
         <span className="muted">{" · "}</span>
+        <a href="/terms.html" rel="noopener" target="_blank">Terms of service</a>
+        <span className="muted">{" · "}</span>
         <button className="link-button" onClick={() => void openFeedbackTab()} type="button">
           Send feedback
         </button>

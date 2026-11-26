@@ -182,6 +182,8 @@ export function FeedbackApp() {
         <span>
           Nothing is sent until you submit it on GitHub or in your email app.{" "}
           <a href="/privacy.html" rel="noopener" target="_blank">Privacy policy</a>
+          {" · "}
+          <a href="/terms.html" rel="noopener" target="_blank">Terms of service</a>
         </span>
       </div>
 

@@ -176,6 +176,8 @@ export function PopupApp() {
           <div className="muted connect-privacy">
             Tokens stay in this browser.{" "}
             <a href="/privacy.html" rel="noopener" target="_blank">Privacy</a>
+            {" · "}
+            <a href="/terms.html" rel="noopener" target="_blank">Terms</a>
           </div>
         </section>
       ) : null}

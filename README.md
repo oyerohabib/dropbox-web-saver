@@ -57,6 +57,10 @@ Sign-in tokens, preferences, and recent saves live only in this browser's extens
 
 The full policy is `privacy.html` in the extension and [PRIVACY.md](PRIVACY.md) for the Chrome Web Store. Keep `PRIVACY.md` and `src/entrypoints/privacy/App.tsx` in sync.
 
+## Terms
+
+Using the extension means you agree to the terms of service. The same text is `terms.html` in the extension and [TERMS.md](TERMS.md) for the Chrome Web Store. Keep `TERMS.md` and `src/entrypoints/terms/App.tsx` in sync.
+
 ## Feedback and bug reports
 
 All feedback becomes a [GitHub issue](https://github.com/oyerohabib/dropbox-web-saver/issues) so it can be tracked.
